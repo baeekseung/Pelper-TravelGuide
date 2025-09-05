@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+pydantic>=2
+httpx
+tenacity
+langchain
+langchain-openai
+tiktoken
+python-dotenv
