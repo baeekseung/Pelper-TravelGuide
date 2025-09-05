@@ -1,5 +1,9 @@
-from fastapi import FastAPI, HTTPException
+import pathlib
+import os
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from jinja2 import Template
 from .schemas import GuideQuery, GuideResponse, SourceItem, LatLng
 from .services.naver_client import NaverClient, pick_top
 from .services.rag_chain import run_chain
@@ -9,19 +13,29 @@ app = FastAPI(title="Location-based Travel Guide API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
 
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok"}
 
+
 @app.post("/v1/guide/query", response_model=GuideResponse)
 async def guide_query(body: GuideQuery):
     if not body.location_text and (body.lat is None or body.lng is None):
-        raise HTTPException(status_code=400, detail="위치 정보(location_text 또는 lat/lng)가 필요합니다.")
+        raise HTTPException(
+            status_code=400,
+            detail="위치 정보(location_text 또는 lat/lng)가 필요합니다.",
+        )
 
-    lat, lng, unresolved = await resolve_location(body.location_text, body.lat, body.lng)
+    lat, lng, unresolved = await resolve_location(
+        body.location_text, body.lat, body.lng
+    )
 
     client = NaverClient()
 
@@ -31,17 +45,23 @@ async def guide_query(body: GuideQuery):
         q = f"{body.location_text} {body.query}"
 
     # 2) 네이버 검색 호출
-    web   = await client.search_web(q, display=min(10, body.max_results))
-    blog  = await client.search_blog(q, display=min(10, body.max_results))
+    web = await client.search_web(q, display=min(10, body.max_results))
+    blog = await client.search_blog(q, display=min(10, body.max_results))
     local = await client.search_local(q, display=min(10, body.max_results))
 
     # 3) 상위 결과 정리
-    collected = pick_top(web, "web", k=5) + pick_top(blog, "blog", k=4) + pick_top(local, "place", k=4)
+    collected = (
+        pick_top(web, "web", k=5)
+        + pick_top(blog, "blog", k=4)
+        + pick_top(local, "place", k=4)
+    )
 
     # 4) LLM 요약/가이드 생성
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
 
-    sources = [SourceItem(**c, score=1.0) for c in collected]  # 점수/거리 리랭킹은 추후 개선
+    sources = [
+        SourceItem(**c, score=1.0) for c in collected
+    ]  # 점수/거리 리랭킹은 추후 개선
     center = LatLng(lat=lat, lng=lng) if lat is not None and lng is not None else None
 
     return GuideResponse(
@@ -49,5 +69,30 @@ async def guide_query(body: GuideQuery):
         sources=sources,
         center=center,
         resolved_address=None if unresolved is None else unresolved,
-        meta={}
+        meta={},
     )
+
+    # -------------------------------
+
+
+# 정적 페이지: 지도 + 폼
+# -------------------------------
+WEB_INDEX = pathlib.Path(__file__).parent / "web" / "index.html"
+if WEB_INDEX.exists():
+    INDEX_HTML = WEB_INDEX.read_text(encoding="utf-8")
+else:
+    INDEX_HTML = """<!doctype html><html><body>
+    <h3>index.html이 없습니다.</h3>
+    <p>경로: app/web/index.html 파일을 생성해 주세요.</p>
+    </body></html>"""
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index(_: Request):
+    map_client_id = os.getenv("NAVER_MAP_CLIENT_ID", "")
+    print(">>> NAVER_MAP_CLIENT_ID =", map_client_id)  # 콘솔에서 값 확인
+    html = Template(INDEX_HTML).render(
+        NAVER_MAP_CLIENT_ID=map_client_id
+    )
+    return HTMLResponse(content=html)
+

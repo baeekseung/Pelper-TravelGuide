@@ -7,3 +7,4 @@ langchain
 langchain-openai
 tiktoken
 python-dotenv
+jinja2
