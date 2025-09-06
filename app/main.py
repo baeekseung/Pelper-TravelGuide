@@ -1,5 +1,6 @@
 import pathlib
 import os
+import asyncio
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -8,6 +9,7 @@ from .schemas import GuideQuery, GuideResponse, SourceItem, LatLng
 from .services.naver_client import NaverClient, pick_top
 from .services.rag_chain import run_chain
 from .utils.geo import resolve_location
+from .utils.Loaction_getter import get_location
 
 app = FastAPI(title="Location-based Travel Guide API", version="0.1.0")
 
@@ -19,10 +21,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 전역 변수로 현재 위치 저장
+current_location = {"lat": 37.5665, "lng": 126.9780}  # 기본값: 서울 시청
+
+
+async def get_startup_location():
+    """앱 시작 시 현재 위치를 가져오는 함수"""
+    global current_location
+    try:
+        # 동기 함수를 비동기로 실행
+        loop = asyncio.get_event_loop()
+        lat, lng = await loop.run_in_executor(None, get_location)
+        current_location = {"lat": lat, "lng": lng}
+        print(f"현재 위치 설정됨: {lat}, {lng}")
+    except Exception as e:
+        print(f"현재 위치 가져오기 실패: {e}")
+        print("기본 위치(서울 시청)를 사용합니다.")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """앱 시작 시 실행되는 이벤트"""
+    await get_startup_location()
+
 
 @app.get("/healthz")
 async def healthz():
     return {"status": "ok"}
+
+
+@app.get("/v1/location/current")
+async def get_current_location():
+    """현재 위치를 반환하는 엔드포인트"""
+    return {
+        "lat": current_location["lat"],
+        "lng": current_location["lng"],
+        "status": "success",
+    }
 
 
 @app.post("/v1/guide/query", response_model=GuideResponse)
@@ -78,11 +113,7 @@ async def guide_query(body: GuideQuery):
         meta={},
     )
 
-    # -------------------------------
 
-
-# 정적 페이지: 지도 + 폼
-# -------------------------------
 WEB_INDEX = pathlib.Path(__file__).parent / "web" / "index.html"
 if WEB_INDEX.exists():
     INDEX_HTML = WEB_INDEX.read_text(encoding="utf-8")

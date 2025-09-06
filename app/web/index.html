@@ -84,13 +84,50 @@
 <script>
   let map, marker, selectedLatLng = null, selectedAddr = "";
 
-  function initMap() {
-    const center = new naver.maps.LatLng(37.5665, 126.9780); // 서울 시청 근처 기본값
+  async function initMap() {
+    // 앱 시작 시 가져온 현재 위치를 사용
+    let center = new naver.maps.LatLng(37.5665, 126.9780); // 기본값: 서울 시청
+    
+    try {
+      const response = await fetch('/v1/location/current');
+      const locationData = await response.json();
+      
+      if (locationData.status === 'success' && locationData.lat && locationData.lng) {
+        center = new naver.maps.LatLng(locationData.lat, locationData.lng);
+        console.log('앱 시작 시 설정된 현재 위치로 지도 중심 설정:', locationData.lat, locationData.lng);
+      } else {
+        console.log('현재 위치를 가져올 수 없어 기본 위치를 사용합니다.');
+      }
+    } catch (error) {
+      console.error('현재 위치 가져오기 실패:', error);
+    }
+    
     map = new naver.maps.Map('map', {
       center, zoom: 14, mapTypeControl: false, scaleControl: true
     });
 
-    marker = new naver.maps.Marker({ position: center, map, visible: false });
+    marker = new naver.maps.Marker({ position: center, map, visible: true });
+    
+    // 현재 위치를 선택된 좌표로 설정
+    selectedLatLng = center;
+    document.getElementById('lat').value = center.y.toFixed(6);
+    document.getElementById('lng').value = center.x.toFixed(6);
+    
+    // 현재 위치의 주소를 가져오기
+    try {
+      naver.maps.Service.reverseGeocode({
+        coords: center,
+        orders: [naver.maps.Service.OrderType.ADDR, naver.maps.Service.OrderType.ROAD_ADDR].join(',')
+      }, function(status, resp) {
+        if (status === naver.maps.Service.Status.OK) {
+          const addr = resp.v2.address?.jibunAddress || resp.v2.roadAddress?.address || "";
+          selectedAddr = addr;
+          document.getElementById('addr').value = addr;
+        }
+      });
+    } catch (err) {
+      console.error('주소 가져오기 실패:', err);
+    }
 
     naver.maps.Event.addListener(map, 'click', async function(e) {
       const latlng = e.coord;

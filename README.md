@@ -21,6 +21,9 @@ NAVER_CLIENT_SECRET=your_naver_client_secret_here
 NAVER_MAP_CLIENT_ID=your_naver_map_client_id_here
 NAVER_MAP_CLIENT_SECRET=your_naver_map_client_secret_here
 
+# Google Cloud API Key (위치 정보용)
+GOOGLE_CLOUD_KEY=your_google_cloud_api_key_here
+
 # Default Locale
 DEFAULT_LOCALE=ko_KR
 ```
@@ -39,6 +42,11 @@ DEFAULT_LOCALE=ko_KR
 1. [Naver Cloud Platform](https://www.ncloud.com/)에서 계정 생성
 2. Maps API 서비스 신청
 3. Application 등록 후 API Key ID와 Secret Key 발급
+
+#### Google Cloud API Key
+1. [Google Cloud Console](https://console.cloud.google.com/)에서 계정 생성
+2. Geolocation API 활성화
+3. API 키 생성 및 제한 설정
 
 ## 설치 및 실행
 
