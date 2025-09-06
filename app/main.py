@@ -21,15 +21,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 전역 변수로 현재 위치 저장
 current_location = {"lat": 37.5665, "lng": 126.9780}  # 기본값: 서울 시청
 
 
 async def get_startup_location():
-    """앱 시작 시 현재 위치를 가져오는 함수"""
     global current_location
     try:
-        # 동기 함수를 비동기로 실행
         loop = asyncio.get_event_loop()
         lat, lng = await loop.run_in_executor(None, get_location)
         current_location = {"lat": lat, "lng": lng}
@@ -41,7 +38,6 @@ async def get_startup_location():
 
 @app.on_event("startup")
 async def startup_event():
-    """앱 시작 시 실행되는 이벤트"""
     await get_startup_location()
 
 
@@ -52,7 +48,6 @@ async def healthz():
 
 @app.get("/v1/location/current")
 async def get_current_location():
-    """현재 위치를 반환하는 엔드포인트"""
     return {
         "lat": current_location["lat"],
         "lng": current_location["lng"],
@@ -72,7 +67,6 @@ async def guide_query(body: GuideQuery):
         body.location_text, body.lat, body.lng
     )
 
-    # address_data가 딕셔너리인 경우 메인 주소 문자열 추출
     if isinstance(address_data, dict):
         resolved_address = address_data.get("main_address", None)
     else:
@@ -80,29 +74,25 @@ async def guide_query(body: GuideQuery):
 
     client = NaverClient()
 
-    # 1) 쿼리 보정(간단): 위치 키워드를 포함
     q = body.query
     if body.location_text:
         q = f"{body.location_text} {body.query}"
 
-    # 2) 네이버 검색 호출
     web = await client.search_web(q, display=min(10, body.max_results))
     blog = await client.search_blog(q, display=min(10, body.max_results))
     local = await client.search_local(q, display=min(10, body.max_results))
 
-    # 3) 상위 결과 정리
     collected = (
         pick_top(web, "web", k=5)
         + pick_top(blog, "blog", k=4)
         + pick_top(local, "place", k=4)
     )
 
-    # 4) LLM 요약/가이드 생성
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
 
     sources = [
         SourceItem(**c, score=1.0) for c in collected
-    ]  # 점수/거리 리랭킹은 추후 개선
+    ]
     center = LatLng(lat=lat, lng=lng) if lat is not None and lng is not None else None
 
     return GuideResponse(

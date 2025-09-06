@@ -12,7 +12,7 @@ def naver_reverse_address(lat: float, lng: float):
     }
     params = {
         "request": "coordsToaddr",
-        "coords": f"{lng},{lat}",  # 경도,위도 순서 유의!
+        "coords": f"{lng},{lat}",
         "sourcecrs": "epsg:4326",
         "output": "json",
         "orders": "roadaddr,addr,admcode",  # 도로명/지번/행정구역
@@ -30,7 +30,5 @@ async def resolve_location(
         address = extract_clean_address(adress_json)
         return (lat, lng, address)
     if location_text:
-        # TODO: 네이버 지도 Geocode 연동
-        # 임시: 좌표 미해결 시 None 반환
         return (None, None, location_text)
     return (None, None, None)

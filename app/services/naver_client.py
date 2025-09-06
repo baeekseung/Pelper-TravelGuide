@@ -6,7 +6,6 @@ BASE = "https://openapi.naver.com/v1/search"
 
 class NaverClient:
     def __init__(self, timeout=10.0):
-        # ✅ 키가 비어있으면 즉시 명확한 예외
         if not settings.naver_client_id or not settings.naver_client_secret:
             raise RuntimeError(
                 "NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 환경변수가 비어있습니다. "
@@ -22,7 +21,6 @@ class NaverClient:
     async def _get(self, url: str, params: Dict):
         async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
             r = await client.get(url, params=params)
-            # ✅ 401 본문까지 포함해 디버깅 용이
             if r.status_code == 401:
                 detail = r.text
                 raise httpx.HTTPStatusError(
@@ -48,7 +46,6 @@ def pick_top(results: dict, kind: Literal["web", "blog", "place"], k: int = 5):
     items = results.get("items", [])[:k]
     out = []
     for it in items:
-        # Naver 응답의 <b> 태그 제거
         title = (it.get("title") or "").replace("<b>", "").replace("</b>", "")
         link = it.get("link") or it.get("bloggerlink") or it.get("link")
         out.append({"title": title, "url": link, "type": kind})

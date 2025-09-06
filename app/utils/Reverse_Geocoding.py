@@ -9,7 +9,7 @@ def naver_reverse_address(lat: float, lng: float):
     }
     params = {
         "request": "coordsToaddr",
-        "coords": f"{lng},{lat}",  # 경도,위도 순서 유의!
+        "coords": f"{lng},{lat}",
         "sourcecrs": "epsg:4326",
         "output": "json",
         "orders": "roadaddr,addr,admcode",  # 도로명/지번/행정구역
@@ -40,7 +40,6 @@ def extract_clean_address(geocoding_result: dict) -> dict:
         area3 = region.get("area3", {}).get("name", "")  # 읍/면/동
         area4 = region.get("area4", {}).get("name", "")  # 리
 
-        # 좌표 정보
         coords = region.get("area2", {}).get("coords", {}).get("center", {})
         lat = coords.get("y")
         lng = coords.get("x")
@@ -98,7 +97,6 @@ def extract_clean_address(geocoding_result: dict) -> dict:
             }
 
         elif name in ["legalcode", "admcode"]:
-            # 행정구역 코드 정보
             code = result.get("code", {})
             address_info["administrative"] = {
                 "area1": area1,
@@ -110,7 +108,6 @@ def extract_clean_address(geocoding_result: dict) -> dict:
                 "coordinates": {"lat": lat, "lng": lng},
             }
 
-    # 가장 상세한 주소를 메인 주소로 설정
     if "road_address" in address_info:
         address_info["main_address"] = address_info["road_address"]["full_address"]
     elif "land_address" in address_info:
