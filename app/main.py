@@ -33,9 +33,15 @@ async def guide_query(body: GuideQuery):
             detail="위치 정보(location_text 또는 lat/lng)가 필요합니다.",
         )
 
-    lat, lng, unresolved = await resolve_location(
+    lat, lng, address_data = await resolve_location(
         body.location_text, body.lat, body.lng
     )
+
+    # address_data가 딕셔너리인 경우 메인 주소 문자열 추출
+    if isinstance(address_data, dict):
+        resolved_address = address_data.get("main_address", None)
+    else:
+        resolved_address = address_data
 
     client = NaverClient()
 
@@ -68,7 +74,7 @@ async def guide_query(body: GuideQuery):
         answer=answer,
         sources=sources,
         center=center,
-        resolved_address=None if unresolved is None else unresolved,
+        resolved_address=resolved_address,
         meta={},
     )
 
@@ -90,8 +96,5 @@ else:
 @app.get("/", response_class=HTMLResponse)
 async def index(_: Request):
     map_client_id = os.getenv("NAVER_MAP_CLIENT_ID", "")
-    html = Template(INDEX_HTML).render(
-        NAVER_MAP_CLIENT_ID=map_client_id
-    )
+    html = Template(INDEX_HTML).render(NAVER_MAP_CLIENT_ID=map_client_id)
     return HTMLResponse(content=html)
-
