@@ -90,7 +90,6 @@ else:
 @app.get("/", response_class=HTMLResponse)
 async def index(_: Request):
     map_client_id = os.getenv("NAVER_MAP_CLIENT_ID", "")
-    print(">>> NAVER_MAP_CLIENT_ID =", map_client_id)  # 콘솔에서 값 확인
     html = Template(INDEX_HTML).render(
         NAVER_MAP_CLIENT_ID=map_client_id
     )
