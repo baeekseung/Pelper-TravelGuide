@@ -8,3 +8,5 @@ langchain-openai
 tiktoken
 python-dotenv
 jinja2
+langcahain_community
+langchain_core
