@@ -1,8 +1,26 @@
-# TravelGuide-Service
+# PELPER : Travel Guide Chat Service for MPTI P
 
-여행 가이드 서비스를 위한 FastAPI 애플리케이션입니다.
+![Python](https://img.shields.io/badge/Python-3670A0?style=for-the-badge)
+![LangChain](https://img.shields.io/badge/LangChain-0E8388?style=for-the-badge)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge)
+![HTML](https://img.shields.io/badge/HTML-E34F26?style=for-the-badge)
+![NaverAPI](https://img.shields.io/badge/NaverAPI-03C75A?style=for-the-badge)
+![Google Cloud](https://img.shields.io/badge/GoogleCloud-4285F4?style=for-the-badge)
 
-## 환경 설정
+<p align="left">
+  <a href="https://github.com/baeekseung">
+    <img src="https://img.shields.io/badge/-baeekseung-181717?style=flat&logo=github&logoColor=white" alt="GitHub - baeekseung"/>
+  </a>
+  &nbsp; | &nbsp;
+  <a href="https://github.com/juyeonkwon">
+    <img src="https://img.shields.io/badge/-juyeonkwon-181717?style=flat&logo=github&logoColor=white" alt="GitHub - juyeonkwon"/>
+  </a>
+</p>
+
+## Introduction
+PELPER는 여행을 계획없이 즉흥적으로 떠나는 사람들을 위한 서비스입니다.
+
+## API Key Setting
 
 프로젝트를 실행하기 전에 다음 환경변수들을 설정해야 합니다:
 
@@ -47,19 +65,3 @@ DEFAULT_LOCALE=ko_KR
 1. [Google Cloud Console](https://console.cloud.google.com/)에서 계정 생성
 2. Geolocation API 활성화
 3. API 키 생성 및 제한 설정
-
-## 설치 및 실행
-
-```bash
-# 의존성 설치
-pip install -r requirements.txt
-
-# 애플리케이션 실행
-python -m app.main
-```
-
-## 보안 주의사항
-
-- `.env` 파일은 절대 Git에 커밋하지 마세요
-- API 키는 환경변수로만 관리하고 코드에 하드코딩하지 마세요
-- 프로덕션 환경에서는 더 안전한 키 관리 시스템을 사용하세요
