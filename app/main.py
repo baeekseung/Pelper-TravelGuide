@@ -82,6 +82,7 @@ async def guide_query(body: GuideQuery):
         q = f"{resolved_address} {body.query}"
 
     q = await refine_query(resolved_address, q)
+    print(f"q: {q}")
 
     web = await client.search_web(q, display=min(10, body.max_results))
     blog = await client.search_blog(q, display=min(10, body.max_results))
@@ -89,8 +90,8 @@ async def guide_query(body: GuideQuery):
 
     collected = (
         pick_top(web, "web", k=5)
-        + pick_top(blog, "blog", k=4)
-        + pick_top(local, "place", k=4)
+        + pick_top(blog, "blog", k=5)
+        + pick_top(local, "place", k=10)
     )
 
     answer = await run_chain(body.query, collected, model_name=body.llm_model)

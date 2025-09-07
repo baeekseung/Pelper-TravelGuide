@@ -42,7 +42,7 @@ class NaverClient:
         return await self._get(f"{BASE}/local.json",
                                {"query": query, "display": display, "start": start})
 
-def pick_top(results: dict, kind: Literal["web", "blog", "place"], k: int = 5):
+def pick_top(results: dict, kind: Literal["web", "blog", "place"], k: int = 10):
     items = results.get("items", [])[:k]
     out = []
     for it in items:

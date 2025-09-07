@@ -19,13 +19,13 @@ def naver_reverse_address(lat: float, lng: float):
     return r.json()
 
 
-def extract_clean_address(geocoding_result: dict) -> dict:
+def extract_clean_address(geocoding_result: dict) -> str:
     if geocoding_result.get("status", {}).get("code") != 0:
-        return {"error": "지오코딩 실패"}
+        return "지오코딩 실패"
 
     results = geocoding_result.get("results", [])
     if not results:
-        return {"error": "주소 정보 없음"}
+        return "주소 정보 없음"
 
     # 각 주소 타입별로 정보 추출
     address_info = {}
@@ -52,13 +52,13 @@ def extract_clean_address(geocoding_result: dict) -> dict:
             building_sub = land.get("number2", "")
             zipcode = land.get("addition1", {}).get("value", "")
 
-            # 도로명주소 조합 (동/읍/리까지만)
+            # 도로명주소 조합 (읍까지만)
             road_address = f"{area1} {area2}"
             if area3:
-                road_address += f" {area3}"
-            if area4:
-                road_address += f" {area4}"
-            # 건물명, 번지 등은 포함하지 않음
+                # area3이 '읍', '면', '동' 중 하나인지 확인
+                if area3.endswith("읍") or area3.endswith("면") or area3.endswith("동"):
+                    road_address += f" {area3}"
+            # area4(리)는 포함하지 않음
 
             address_info["road_address"] = {
                 "full_address": road_address.strip(),
@@ -70,7 +70,7 @@ def extract_clean_address(geocoding_result: dict) -> dict:
             }
 
         elif name == "addr":
-            # 지번주소 (동/읍/리까지만)
+            # 지번주소 (읍까지만)
             land = result.get("land", {})
             land_type = land.get("type", "")
             land_number1 = land.get("number1", "")
@@ -78,10 +78,9 @@ def extract_clean_address(geocoding_result: dict) -> dict:
 
             land_address = f"{area1} {area2}"
             if area3:
-                land_address += f" {area3}"
-            if area4:
-                land_address += f" {area4}"
-            # 번지 등은 포함하지 않음
+                if area3.endswith("읍") or area3.endswith("면") or area3.endswith("동"):
+                    land_address += f" {area3}"
+            # area4(리)는 포함하지 않음
 
             address_info["land_address"] = {
                 "full_address": land_address.strip(),
@@ -103,18 +102,24 @@ def extract_clean_address(geocoding_result: dict) -> dict:
                 "coordinates": {"lat": lat, "lng": lng},
             }
 
+    # 읍/면/동까지만 반환
     if "road_address" in address_info:
-        # area1, area2, area3, area4만 조합
         road = address_info["road_address"]
-        main_address = f"{road.get('full_address', '')}".strip()
+        main_address = road.get('full_address', '').strip()
         address_info["main_address"] = main_address
     elif "land_address" in address_info:
         land = address_info["land_address"]
-        main_address = f"{land.get('full_address', '')}".strip()
+        main_address = land.get('full_address', '').strip()
         address_info["main_address"] = main_address
     else:
         admin = address_info.get("administrative", {})
-        main_address = f"{admin.get('area1', '')} {admin.get('area2', '')} {admin.get('area3', '')} {admin.get('area4', '')}".strip()
-        address_info["main_address"] = main_address
+        # area3이 읍/면/동이면 포함, 아니면 area1 area2까지만
+        area1 = admin.get('area1', '')
+        area2 = admin.get('area2', '')
+        area3 = admin.get('area3', '')
+        main_address = f"{area1} {area2}"
+        if area3 and (area3.endswith("읍") or area3.endswith("면") or area3.endswith("동")):
+            main_address += f" {area3}"
+        address_info["main_address"] = main_address.strip()
 
     return address_info["main_address"]
