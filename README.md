@@ -1,4 +1,4 @@
-# PELPER : Travel Guide Chat Service for MPTI P
+# PELPER : Travel Guide Chat Service for MBTI P
 
 ![Python](https://img.shields.io/badge/Python-3670A0?style=for-the-badge)
 ![LangChain](https://img.shields.io/badge/LangChain-0E8388?style=for-the-badge)
