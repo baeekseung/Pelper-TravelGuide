@@ -10,6 +10,7 @@ from .services.naver_client import NaverClient, pick_top
 from .services.rag_chain import run_chain
 from .utils.geo import resolve_location
 from .utils.Loaction_getter import get_location
+from .utils.Refine_query import refine_query
 
 app = FastAPI(title="Location-based Travel Guide API", version="0.1.0")
 
@@ -23,16 +24,16 @@ app.add_middleware(
 
 current_location = {"lat": 37.5665, "lng": 126.9780}  # 기본값: 서울 시청
 
-
+# 사용자의 현재 위치를 current_location에 저장
 async def get_startup_location():
     global current_location
     try:
         loop = asyncio.get_event_loop()
         lat, lng = await loop.run_in_executor(None, get_location)
         current_location = {"lat": lat, "lng": lng}
-        print(f"현재 위치 설정됨: {lat}, {lng}")
+        print(f"사용자 GPS 위치 설정됨: {lat}, {lng}")
     except Exception as e:
-        print(f"현재 위치 가져오기 실패: {e}")
+        print(f"사용자 GPS 위치 가져오기 실패: {e}")
         print("기본 위치(서울 시청)를 사용합니다.")
 
 
@@ -46,6 +47,7 @@ async def healthz():
     return {"status": "ok"}
 
 
+# 사용자의 위도 경도를 dict로 반환
 @app.get("/v1/location/current")
 async def get_current_location():
     return {
@@ -57,6 +59,7 @@ async def get_current_location():
 
 @app.post("/v1/guide/query", response_model=GuideResponse)
 async def guide_query(body: GuideQuery):
+    # 텍스트 주소, 위도, 경도 정보가 없을때
     if not body.location_text and (body.lat is None or body.lng is None):
         raise HTTPException(
             status_code=400,
@@ -76,7 +79,9 @@ async def guide_query(body: GuideQuery):
 
     q = body.query
     if body.location_text:
-        q = f"{body.location_text} {body.query}"
+        q = f"{resolved_address} {body.query}"
+
+    q = await refine_query(resolved_address, q)
 
     web = await client.search_web(q, display=min(10, body.max_results))
     blog = await client.search_blog(q, display=min(10, body.max_results))

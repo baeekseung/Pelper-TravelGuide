@@ -5,7 +5,7 @@ from .Reverse_Geocoding import extract_clean_address, naver_reverse_address
 
 
 def naver_reverse_address(lat: float, lng: float):
-    url = "https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc?coords=127.585%2C34.9765&output=json&orders=legalcode%2Cadmcode%2Caddr%2Croadaddr"
+    url = "https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc"
     headers = {
         "X-NCP-APIGW-API-KEY-ID": settings.naver_map_client_id,
         "X-NCP-APIGW-API-KEY": settings.naver_map_reversegeocode_client_secret,
