@@ -1,12 +1,14 @@
 import pathlib
 import os
 import asyncio
+from typing import List
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from jinja2 import Template
 from .schemas import GuideQuery, GuideResponse, SourceItem, LatLng
-from .services.naver_client import NaverClient, pick_top
+from .services.naver_client import NaverClient
+from .services.naver_client import enrich_places_with_details_from_map
 from .services.rag_chain import run_chain
 from .utils.geo import resolve_location
 from .utils.Loaction_getter import get_location
@@ -84,15 +86,29 @@ async def guide_query(body: GuideQuery):
     q = await refine_query(resolved_address, q)
     print(f"q: {q}")
 
-    web = await client.search_web(q, display=min(10, body.max_results))
-    blog = await client.search_blog(q, display=min(10, body.max_results))
-    local = await client.search_local(q, display=min(10, body.max_results))
+    places: List[dict] = await enrich_places_with_details_from_map(
+            client,
+            q,
+            max_places=min(10, body.max_results),
+            region_hint=resolved_address or "",
+            photo_limit=3,
+            photo_offset=2,
+            timeout_ms=24000,
+        )
 
-    collected = (
-        pick_top(web, "web", k=5)
-        + pick_top(blog, "blog", k=5)
-        + pick_top(local, "place", k=10)
-    )
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
 
