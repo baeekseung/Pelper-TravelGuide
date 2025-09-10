@@ -8,3 +8,6 @@ langchain-openai
 tiktoken
 python-dotenv
 jinja2
+selenium
+openpyxl
+webdriver_manager
