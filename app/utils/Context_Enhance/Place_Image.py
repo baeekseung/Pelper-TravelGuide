@@ -75,6 +75,6 @@ if __name__ == "__main__":
     import asyncio
 
     res = asyncio.run(
-        fetch_and_save_images("경상북도 청도군 화양읍 이슬미로", skip=2, limit=3)
+        fetch_and_save_images("경상북도 청도군 화양읍 파이노스", skip=2, limit=3)
     )
     print("저장된 파일들:", res)

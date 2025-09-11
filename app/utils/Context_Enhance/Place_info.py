@@ -78,14 +78,14 @@ def search_places(
     return places
 
 
-if __name__ == "__main__":
-    q = "경상북도 청도군 화양읍 파이노스"
-    results = search_places(q, display=5)
-    for i, p in enumerate(results, 1):
-        print(f"[{i}] {p.title}")
-        print(f"  카테고리: {p.category}")
-        print(f"  전화: {p.telephone}")
-        print(f"  지번주소: {p.address}")
-        print(f"  도로명주소: {p.roadAddress}")
-        print(f"  좌표(TM128): ({p.mapx}, {p.mapy})")
-        print(f"  링크: {p.link}")
+# if __name__ == "__main__":
+#     q = "경상북도 청도군 화양읍 파이노스"
+#     results = search_places(q, display=5)
+#     for i, p in enumerate(results, 1):
+#         print(f"[{i}] {p.title}")
+#         print(f"  카테고리: {p.category}")
+#         print(f"  전화: {p.telephone}")
+#         print(f"  지번주소: {p.address}")
+#         print(f"  도로명주소: {p.roadAddress}")
+#         print(f"  좌표(TM128): ({p.mapx}, {p.mapy})")
+#         print(f"  링크: {p.link}")
