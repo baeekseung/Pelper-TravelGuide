@@ -12,6 +12,7 @@ from app.utils.Context_Enhance.Naver_blog_text_gatter import (
     extract_blog_content,
     build_driver,
 )
+from app.utils.Context_Enhance.blog_links import fetch_top_blog_links_async
 from app.services.naver_client import NaverClient, pick_top
 from app.utils.Context_Enhance.Place_info import search_places
 from app.utils.Context_Enhance.Place_Image import fetch_and_save_images
@@ -29,9 +30,10 @@ BASE = "https://openapi.naver.com/v1/search/blog.json"
 Query = ""
 
 
-def build_context(places: List[str], address: str):
+async def build_context(places: List[str], address: str):
     Place_Num = 1
     Context_Result = ""
+    collected = []  # collected 데이터를 저장할 리스트
     for place in places:
         results = search_places(f"{address} {place}", display=1)
 
@@ -44,21 +46,28 @@ def build_context(places: List[str], address: str):
             Context_Result += f"링크: {results[0].link}\n"
             Context_Result += "\n"
 
-            blog_links = naver_blog_search(f"{address} {place}", k=5, sort="sim")
+            # pid 번호 가져오기
+
+            blog_links = await fetch_top_blog_links_async(
+                "1333351795", top_k=5, headless=True
+            )
             driver = build_driver(headless=True)
             print(f"{address} {place}")
             print("blog_links", blog_links)
-            Blog_Num = 1
-            for blog_link in blog_links:
-                blog_content = extract_blog_content(blog_link.strip(), driver)
-                Context_Result += f"Blog {Blog_Num}\n블로그 링크: {blog_link}\n"
-                Context_Result += f"블로그 내용: {blog_content['text']}\n"
-                Context_Result += "\n"
-                Blog_Num += 1
 
-            Place_Num += 1
+            # Blog_Num = 1
+            # for blog_link in blog_links:
+            #     blog_content = extract_blog_content(blog_link.strip(), driver)
+            #     Context_Result += f"Blog {Blog_Num}\n블로그 링크: {blog_link}\n"
+            #     Context_Result += f"블로그 내용: {blog_content['text']}\n"
+            #     Context_Result += "\n"
+            #     Blog_Num += 1
+
+            # Place_Num += 1
 
     # print("Context_Result\n\n", Context_Result)
+    return collected
+
 
 # # 블로그 가져오기
 # try:

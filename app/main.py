@@ -13,6 +13,7 @@ from app.utils.geo import resolve_location
 from app.utils.Loaction_getter import get_location
 from app.utils.Refine_query import refine_query
 from app.utils.Build_context import build_context
+from app.utils.Context_Enhance.blog_links import fetch_top_blog_links_async
 
 app = FastAPI(title="Location-based Travel Guide API", version="0.1.0")
 
@@ -95,7 +96,7 @@ async def guide_query(body: GuideQuery):
         place_list.append(item["title"])
     print("places", place_list)
 
-    build_context(place_list, resolved_address)
+    collected = await build_context(place_list, resolved_address)
 
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
 
