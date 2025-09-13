@@ -98,6 +98,12 @@ async def guide_query(body: GuideQuery):
 
     collected = await build_context(place_list, resolved_address)
 
+
+
+
+
+    
+
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
 
     sources = [SourceItem(**c, score=1.0) for c in collected]

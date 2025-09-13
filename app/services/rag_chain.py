@@ -11,20 +11,16 @@ SYSTEM_PROMPT = """당신은 지역 맞춤 여행 가이드입니다.
 - 링크는 너무 많이 넣지 말고 핵심 출처만 제공합니다.
 """
 
-def build_context_block(collected: List[Dict]) -> str:
-    lines = []
-    for i, c in enumerate(collected, 1):
-        lines.append(f"[{i}] {c['title']} | {c['url']} | type={c['type']}")
-        if "snippet" in c and c["snippet"]:
-            lines.append(f"snippet: {c['snippet'][:240]}")
-    return "\n".join(lines)
+USER_PROMPT = """
+"""
 
-async def run_chain(user_query: str, collected: List[Dict], model_name: str = "gpt-4o-mini") -> str:
+
+async def run_chain(user_query: str, context: str, model_name: str = "gpt-4o-mini") -> str:
     llm = ChatOpenAI(api_key=settings.openai_api_key, model=model_name, temperature=0.2)
-    ctx = build_context_block(collected)
+    ctx = context
     messages = [
         SystemMessage(content=SYSTEM_PROMPT + "\n\n자료:\n" + ctx),
-        HumanMessage(content=user_query),
+        HumanMessage(content=USER_PROMPT),
     ]
     resp = await llm.ainvoke(messages)
     return resp.content

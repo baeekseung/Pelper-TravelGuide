@@ -1,36 +1,61 @@
-"""
-- 10개씩 3배치 수집함요
-- 각 컨테이너(div.pui__vn15t2) 안 rvshowmore 클릭 -> 컨테이너 innerText 수집
-"""
-
 import re
 from typing import List
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+from playwright.async_api import async_playwright, TimeoutError as PWTimeoutAsync
 
-UA_MOBILE = ("Mozilla/5.0 (Linux; Android 10; Pixel 3) "
-             "AppleWebKit/537.36 (KHTML, like Gecko) "
-             "Chrome/124.0.0.0 Mobile Safari/537.36")
+UA_MOBILE = (
+    "Mozilla/5.0 (Linux; Android 10; Pixel 3) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Mobile Safari/537.36"
+)
 
-def _normalize_to_mplace(url: str) -> str:
-    for pat in (r"/restaurant/(\d+)", r"/entry/place/(\d+)", r"/place/(\d+)"):
-        m = re.search(pat, url)
-        if m:
-            pid = m.group(1)
-            return f"https://m.place.naver.com/restaurant/{pid}/review/visitor?reviewSort=recent"
-    return url
+
+def _normalize_to_mplace(pid: str) -> str:
+    return (
+        f"https://m.place.naver.com/restaurant/{pid}/review/visitor?reviewSort=recent"
+    )
+
 
 def _block_assets(route, req):
     u = req.url.lower()
-    if any(u.endswith(ext) for ext in (".png",".jpg",".jpeg",".gif",".webp",
-                                       ".mp4",".webm",".svg",".woff",".woff2",
-                                       ".ttf",".otf")):
+    if any(
+        u.endswith(ext)
+        for ext in (
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".webp",
+            ".mp4",
+            ".webm",
+            ".svg",
+            ".woff",
+            ".woff2",
+            ".ttf",
+            ".otf",
+        )
+    ):
         return route.abort()
     return route.continue_()
 
+
 def _inner_text(page, loc) -> str:
     h = loc.element_handle()
-    if not h: return ""
-    return (page.evaluate("(el)=> (el.innerText||el.textContent||'').trim()", h) or "").strip()
+    if not h:
+        return ""
+    return (
+        page.evaluate("(el)=> (el.innerText||el.textContent||'').trim()", h) or ""
+    ).strip()
+
+
+async def _inner_text_async(page, loc) -> str:
+    h = await loc.element_handle()
+    if not h:
+        return ""
+    return (
+        await page.evaluate("(el)=> (el.innerText||el.textContent||'').trim()", h) or ""
+    ).strip()
+
 
 def _click_safe(page, loc, wait_ms: int = 180) -> bool:
     try:
@@ -40,7 +65,8 @@ def _click_safe(page, loc, wait_ms: int = 180) -> bool:
         return True
     except Exception:
         h = loc.element_handle()
-        if not h: return False
+        if not h:
+            return False
         try:
             page.evaluate("(el)=>el.click()", h)
             page.wait_for_timeout(wait_ms)
@@ -48,24 +74,51 @@ def _click_safe(page, loc, wait_ms: int = 180) -> bool:
         except Exception:
             return False
 
+
+async def _click_safe_async(page, loc, wait_ms: int = 180) -> bool:
+    try:
+        await loc.scroll_into_view_if_needed()
+        await loc.click()
+        await page.wait_for_timeout(wait_ms)
+        return True
+    except Exception:
+        h = await loc.element_handle()
+        if not h:
+            return False
+        try:
+            await page.evaluate("(el)=>el.click()", h)
+            await page.wait_for_timeout(wait_ms)
+            return True
+        except Exception:
+            return False
+
+
 def _click_next_batch(page) -> bool:
     def _try(sel: str) -> bool:
         btn = page.locator(sel)
-        if btn.count() == 0: return False
+        if btn.count() == 0:
+            return False
         ok = _click_safe(page, btn.first, 250)
-        if ok: print(f"[debug] next-batch clicked by: {sel}")
+        if ok:
+            print(f"[debug] next-batch clicked by: {sel}")
         return ok
 
-    for sel in ["a.fvwqf:has(span.TeItc)",
-                "a:has(span.TeItc)",
-                "a:has-text('펼쳐서 더보기')"]:
-        if _try(sel): return True
+    for sel in [
+        "a.fvwqf:has(span.TeItc)",
+        "a:has(span.TeItc)",
+        "a:has-text('펼쳐서 더보기')",
+    ]:
+        if _try(sel):
+            return True
 
     span = page.locator("span.TeItc")
     if span.count() > 0:
         try:
             h = span.first.element_handle()
-            ok = page.evaluate("(el)=>{ const a=el.closest('a'); if(!a) return false; a.click(); return true; }", h)
+            ok = page.evaluate(
+                "(el)=>{ const a=el.closest('a'); if(!a) return false; a.click(); return true; }",
+                h,
+            )
             page.wait_for_timeout(250)
             if ok:
                 print("[debug] next-batch clicked by closest('a')")
@@ -74,7 +127,11 @@ def _click_next_batch(page) -> bool:
             pass
 
     target = None
-    for sel in ["a.fvwqf:has(span.TeItc)", "a:has(span.TeItc)", "a:has-text('펼쳐서 더보기')"]:
+    for sel in [
+        "a.fvwqf:has(span.TeItc)",
+        "a:has(span.TeItc)",
+        "a:has-text('펼쳐서 더보기')",
+    ]:
         loc = page.locator(sel)
         if loc.count() > 0:
             target = loc.first
@@ -86,7 +143,9 @@ def _click_next_batch(page) -> bool:
         try:
             box = target.bounding_box()
             if box:
-                page.mouse.click(box["x"]+box["width"]/2, box["y"]+box["height"]/2)
+                page.mouse.click(
+                    box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+                )
                 page.wait_for_timeout(250)
                 print("[debug] next-batch clicked by mouse coords")
                 return True
@@ -95,6 +154,70 @@ def _click_next_batch(page) -> bool:
     print("[debug] next-batch button NOT found")
     return False
 
+
+async def _click_next_batch_async(page) -> bool:
+    async def _try(sel: str) -> bool:
+        btn = page.locator(sel)
+        if await btn.count() == 0:
+            return False
+        ok = await _click_safe_async(page, btn.first, 250)
+        if ok:
+            # print(f"[debug] next-batch clicked by: {sel}")
+            pass
+        return ok
+
+    for sel in [
+        "a.fvwqf:has(span.TeItc)",
+        "a:has(span.TeItc)",
+        "a:has-text('펼쳐서 더보기')",
+    ]:
+        if await _try(sel):
+            return True
+
+    span = page.locator("span.TeItc")
+    if await span.count() > 0:
+        try:
+            h = await span.first.element_handle()
+            ok = await page.evaluate(
+                "(el)=>{ const a=el.closest('a'); if(!a) return false; a.click(); return true; }",
+                h,
+            )
+            await page.wait_for_timeout(250)
+            if ok:
+                print("[debug] next-batch clicked by closest('a')")
+                return True
+        except Exception:
+            pass
+
+    target = None
+    for sel in [
+        "a.fvwqf:has(span.TeItc)",
+        "a:has(span.TeItc)",
+        "a:has-text('펼쳐서 더보기')",
+    ]:
+        loc = page.locator(sel)
+        if await loc.count() > 0:
+            target = loc.first
+            break
+    if not target and await span.count() > 0:
+        target = span.first
+
+    if target:
+        try:
+            box = await target.bounding_box()
+            if box:
+                await page.mouse.click(
+                    box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+                )
+                await page.wait_for_timeout(250)
+                print("[debug] next-batch clicked by mouse coords")
+                return True
+        except Exception:
+            pass
+    print("[debug] next-batch button NOT found")
+    return False
+
+
 def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> List[str]:
     target = _normalize_to_mplace(url)
     out: List[str] = []
@@ -102,8 +225,13 @@ def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> Lis
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=headless,
-            args=["--disable-gpu","--disable-webgl","--disable-webgl2",
-                  "--no-sandbox","--disable-dev-shm-usage"],
+            args=[
+                "--disable-gpu",
+                "--disable-webgl",
+                "--disable-webgl2",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ],
         )
         ctx = browser.new_context(
             user_agent=UA_MOBILE,
@@ -112,7 +240,8 @@ def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> Lis
             locale="ko-KR",
         )
         ctx.route("**/*", _block_assets)
-        page = ctx.new_page(); page.set_default_timeout(10000)
+        page = ctx.new_page()
+        page.set_default_timeout(10000)
 
         try:
             page.goto(target, wait_until="domcontentloaded")
@@ -126,8 +255,10 @@ def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> Lis
             cons = page.locator("div.pui__vn15t2")
             total = cons.count()
             if total == 0:
-                page.mouse.wheel(0, 800); page.wait_for_timeout(250)
-                cons = page.locator("div.pui__vn15t2"); total = cons.count()
+                page.mouse.wheel(0, 800)
+                page.wait_for_timeout(250)
+                cons = page.locator("div.pui__vn15t2")
+                total = cons.count()
                 if total == 0:
                     break
 
@@ -147,11 +278,14 @@ def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> Lis
                     try:
                         page.wait_for_function(
                             "(before)=> document.querySelectorAll('div.pui__vn15t2').length > before",
-                            arg=before, timeout=2500
+                            arg=before,
+                            timeout=2500,
                         )
                     except Exception:
-                        page.mouse.wheel(0, 1200); page.wait_for_timeout(300)
-                    cons = page.locator("div.pui__vn15t2"); total = cons.count()
+                        page.mouse.wheel(0, 1200)
+                        page.wait_for_timeout(300)
+                    cons = page.locator("div.pui__vn15t2")
+                    total = cons.count()
                     if processed_offset >= total:
                         break
 
@@ -183,19 +317,137 @@ def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> Lis
                     try:
                         page.wait_for_function(
                             "(before)=> document.querySelectorAll('div.pui__vn15t2').length > before",
-                            arg=before, timeout=2500
+                            arg=before,
+                            timeout=2500,
                         )
                     except Exception:
-                        page.mouse.wheel(0, 1200); page.wait_for_timeout(300)
+                        page.mouse.wheel(0, 1200)
+                        page.wait_for_timeout(300)
 
             if b == batches - 1:
                 break
 
         browser.close()
-    return out[:batches*10]
+    return out[: batches * 10]
+
+
+async def crawl_reviews_text_async(
+    url: str, headless: bool = True, batches: int = 3
+) -> List[str]:
+    target = _normalize_to_mplace(url)
+    out: List[str] = []
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=headless,
+            args=[
+                "--disable-gpu",
+                "--disable-webgl",
+                "--disable-webgl2",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ],
+        )
+        ctx = await browser.new_context(
+            user_agent=UA_MOBILE,
+            viewport={"width": 420, "height": 900},
+            java_script_enabled=True,
+            locale="ko-KR",
+        )
+        await ctx.route("**/*", _block_assets)
+        page = await ctx.new_page()
+        page.set_default_timeout(10000)
+
+        try:
+            await page.goto(target, wait_until="domcontentloaded")
+        except PWTimeoutAsync:
+            pass
+        await page.wait_for_timeout(400)
+
+        processed_offset = 0
+
+        for b in range(batches):
+            cons = page.locator("div.pui__vn15t2")
+            total = await cons.count()
+            if total == 0:
+                await page.mouse.wheel(0, 800)
+                await page.wait_for_timeout(250)
+                cons = page.locator("div.pui__vn15t2")
+                total = await cons.count()
+                if total == 0:
+                    break
+
+            # 이번 배치에서 정확히 10개 텍스트를 확보할 때까지 킵고잉
+            need = 10
+            collected_this_batch = 0
+
+            while collected_this_batch < need:
+                cons = page.locator("div.pui__vn15t2")
+                total = await cons.count()
+
+                # 부족하면 버튼 눌러 다음 10개 노출
+                if processed_offset >= total:
+                    before = total
+                    if not await _click_next_batch_async(page):
+                        break
+                    try:
+                        await page.wait_for_function(
+                            "(before)=> document.querySelectorAll('div.pui__vn15t2').length > before",
+                            arg=before,
+                            timeout=2500,
+                        )
+                    except Exception:
+                        await page.mouse.wheel(0, 1200)
+                        await page.wait_for_timeout(300)
+                    cons = page.locator("div.pui__vn15t2")
+                    total = await cons.count()
+                    if processed_offset >= total:
+                        break
+
+                end = min(processed_offset + (need - collected_this_batch), total)
+                for i in range(processed_offset, end):
+                    con = cons.nth(i)
+                    sm = con.locator("[data-pui-click-code='rvshowmore']")
+                    if await sm.count() > 0:
+                        await _click_safe_async(page, sm.last, 140)
+
+                    txt = await _inner_text_async(page, con)
+                    txt = re.sub(r"\s*(더보기|접기)\s*$", "", txt).strip()
+                    if txt:
+                        out.append(txt)
+                        collected_this_batch += 1
+                    else:
+                        # 빈 텍스트 패~~~~~~~~~~스
+                        pass
+
+                    processed_offset += 1
+
+                    if collected_this_batch >= need:
+                        break
+
+                if collected_this_batch < need and processed_offset >= total:
+                    before = total
+                    if not await _click_next_batch_async(page):
+                        break
+                    try:
+                        await page.wait_for_function(
+                            "(before)=> document.querySelectorAll('div.pui__vn15t2').length > before",
+                            arg=before,
+                            timeout=2500,
+                        )
+                    except Exception:
+                        await page.mouse.wheel(0, 1200)
+                        await page.wait_for_timeout(300)
+
+            if b == batches - 1:
+                break
+
+        await browser.close()
+    return out[: batches * 10]
+
 
 if __name__ == "__main__":
-    link = input("네이버 플레이스 리뷰 링크: ").strip()
+    link = input("네이버 플레이스 pid: ").strip()
     texts = crawl_reviews_text(link, headless=True, batches=3)
     print(f"✅ 수집 {len(texts)}건")
     for i, t in enumerate(texts, 1):
