@@ -16,6 +16,7 @@ from app.utils.Context_Enhance.blog_links import fetch_top_blog_links_async
 from app.services.naver_client import NaverClient, pick_top
 from app.utils.Context_Enhance.Place_info import search_places
 from app.utils.Context_Enhance.Place_Image import fetch_and_save_images
+from app.utils.Context_Enhance.get_place_pid import get_place_pid_async
 
 from dotenv import load_dotenv
 
@@ -47,10 +48,10 @@ async def build_context(places: List[str], address: str):
             Context_Result += "\n"
 
             # pid 번호 가져오기
+            pid = await get_place_pid_async(f"{address} {place}")
+            print("pid", pid)
 
-            blog_links = await fetch_top_blog_links_async(
-                "1333351795", top_k=5, headless=True
-            )
+            blog_links = await fetch_top_blog_links_async(pid, top_k=5, headless=True)
             driver = build_driver(headless=True)
             print(f"{address} {place}")
             print("blog_links", blog_links)
