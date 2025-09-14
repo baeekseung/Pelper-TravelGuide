@@ -18,6 +18,7 @@ from app.utils.Context_Enhance.Place_info import search_places
 from app.utils.Context_Enhance.Place_Image import fetch_and_save_images
 from app.utils.Context_Enhance.get_place_pid import get_place_pid_async
 from app.utils.Context_Enhance.reviews_crawling import crawl_reviews_text_async
+from app.utils.Context_Enhance.Place_Image import fetch_and_save_images
 
 from dotenv import load_dotenv
 
@@ -69,9 +70,9 @@ async def build_context(places: List[str], address: str):
                 Context_Result += f"## Reviews {Reviews_Num}\n### 리뷰 내용: {review}\n"
                 Context_Result += "\n"
                 Reviews_Num += 1
+                
+            images = await fetch_and_save_images(f"{address} {place}", skip=2, limit=3)
 
             Place_Num += 1
-            
 
-    print("Context_Result", Context_Result)
     return Context_Result

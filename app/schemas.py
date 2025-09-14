@@ -9,7 +9,7 @@ class GuideQuery(BaseModel):
     radius_m: int = 1500
     language: str = "ko"
     max_results: int = 12
-    llm_model: str = "gpt-4o-mini"
+    llm_model: str = "gpt-4.1-2025-04-14"
     safe_mode: bool = True
 
 class SourceItem(BaseModel):

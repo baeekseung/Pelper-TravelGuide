@@ -12,4 +12,4 @@ langcahain_community
 langchain_core
 selenium
 openpyxl
-webdriver_manager
+langchain_teddynote
