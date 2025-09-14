@@ -1,16 +1,19 @@
 import pathlib
 import os
 import asyncio
+from typing import List
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from jinja2 import Template
-from .schemas import GuideQuery, GuideResponse, SourceItem, LatLng
-from .services.naver_client import NaverClient, pick_top
-from .services.rag_chain import run_chain
-from .utils.geo import resolve_location
-from .utils.Loaction_getter import get_location
-from .utils.Refine_query import refine_query
+from app.schemas import GuideQuery, GuideResponse, SourceItem, LatLng
+from app.services.naver_client import NaverClient, pick_top
+from app.services.rag_chain import run_chain
+from app.utils.geo import resolve_location
+from app.utils.Loaction_getter import get_location
+from app.utils.Refine_query import refine_query
+from app.utils.Build_context import build_context
+from app.utils.Context_Enhance.blog_links import fetch_top_blog_links_async
 
 app = FastAPI(title="Location-based Travel Guide API", version="0.1.0")
 
@@ -23,6 +26,7 @@ app.add_middleware(
 )
 
 current_location = {"lat": 37.5665, "lng": 126.9780}  # 기본값: 서울 시청
+
 
 # 사용자의 현재 위치를 current_location에 저장
 async def get_startup_location():
@@ -84,21 +88,25 @@ async def guide_query(body: GuideQuery):
     q = await refine_query(resolved_address, q)
     print(f"q: {q}")
 
-    web = await client.search_web(q, display=min(10, body.max_results))
-    blog = await client.search_blog(q, display=min(10, body.max_results))
     local = await client.search_local(q, display=min(10, body.max_results))
+    local_top = pick_top(local, kind="place", k=5)
 
-    collected = (
-        pick_top(web, "web", k=5)
-        + pick_top(blog, "blog", k=5)
-        + pick_top(local, "place", k=10)
-    )
+    place_list = []
+    for item in local_top:
+        place_list.append(item["title"])
+    print("places", place_list)
+
+    collected = await build_context(place_list, resolved_address)
+
+
+
+
+
+    
 
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
 
-    sources = [
-        SourceItem(**c, score=1.0) for c in collected
-    ]
+    sources = [SourceItem(**c, score=1.0) for c in collected]
     center = LatLng(lat=lat, lng=lng) if lat is not None and lng is not None else None
 
     return GuideResponse(

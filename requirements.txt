@@ -10,3 +10,6 @@ python-dotenv
 jinja2
 langcahain_community
 langchain_core
+selenium
+openpyxl
+webdriver_manager
