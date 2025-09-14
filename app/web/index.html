@@ -4,36 +4,142 @@
   <meta charset="utf-8" />
   <title>Travel Guide - Naver Map</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- 네이버 지도 JS API -->
   <script
-  src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId={{ NAVER_MAP_CLIENT_ID }}&submodules=geocoder&callback=initMap">
-</script>
+    src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId={{ NAVER_MAP_CLIENT_ID }}&submodules=geocoder&callback=initMap">
+  </script>
   <style>
-    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #0b0b0c; color: #eaeaea; }
-    header { padding: 12px 16px; border-bottom: 1px solid #222; }
-    .container { display: grid; grid-template-columns: 1fr 420px; gap: 12px; height: calc(100vh - 57px); }
-    #map { width: 100%; height: 100%; }
-    aside { padding: 12px; border-left: 1px solid #222; overflow: auto; }
-    .card { background: #111214; border: 1px solid #1e1f22; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
-    label { display:block; font-size: 12px; opacity:.85; margin-bottom: 6px; }
-    input, select, button, textarea {
-      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid #2a2b2f;
-      background: #0e0f11; color: #eaeaea; outline: none;
+    :root {
+      --bg: #0b0b0c; --fg:#eaeaea; --border:#222; --card:#111214; --cardBorder:#1e1f22; --muted:#a1a1a1;
     }
-    button { cursor: pointer; }
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .srcitem { font-size: 13px; margin: 6px 0; }
-    a { color: #8ab4ff; text-decoration: none; }
-    .muted { color: #a1a1a1; font-size: 12px; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); color: var(--fg); }
+    header { padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:8px;}
+    .container {
+      display:grid;
+      grid-template-columns: 1fr 420px;   /* 기본: 지도 + 사이드바 */
+      gap:12px; height: calc(100vh - 57px);
+      transition: grid-template-columns .25s ease;
+    }
+    /* === 모드별 레이아웃 === */
+    .container.split { grid-template-columns: 1fr 1fr; }      /* 지도 1 : 답변 1 */
+    .container.full  { grid-template-columns: 1fr; }           /* 답변 전체 화면 */
+    .container.full aside { border-left:none; }
+    #map { width:100%; height:100%; }
+    aside { padding:12px; border-left:1px solid var(--border); overflow:auto; }
+    .card { background: var(--card); border:1px solid var(--cardBorder); border-radius:14px; padding:12px; margin-bottom:12px; }
+    label { display:block; font-size:12px; opacity:.85; margin-bottom:6px; }
+    input, select, button, textarea {
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2a2b2f; background:#0e0f11; color:var(--fg); outline:none;
+    }
+    button { cursor:pointer; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .srcitem { font-size:13px; margin:6px 0; }
+    a { color:#8ab4ff; text-decoration:none; }
+    .muted { color:var(--muted); font-size:12px; }
+    .hidden { display:none !important; }
+
+    /* 답변 패널 */
+    .answer-shell { display:flex; justify-content:center; }
+    .answer-panel {
+      width: min(960px, 96vw);
+      margin: 8px auto 24px;
+      padding: 0;
+      border-radius: 16px;
+      overflow: hidden;
+      border:1px solid var(--cardBorder);
+      background: var(--card);
+      height: calc(100vh - 100px);       /* 분할 보기에서 적절한 높이 */
+      display:flex; flex-direction:column;
+    }
+    .answer-header {
+      display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--border); background:#0f1012;
+      position: sticky; top: 0; z-index: 2;
+    }
+    .answer-header button { width:auto; border-radius:8px; padding:8px 10px; }
+    .answer-body { padding:14px; overflow:auto; }
+    .answer-title { font-weight:700; margin-bottom:6px; }
+    .answer-content { white-space: pre-wrap; line-height: 1.6; }
+    .answer-divider { border:none; border-top:1px solid var(--border); margin:12px 0; }
+    .source-title { font-weight:600; margin-bottom:6px; }
+
+    /* 모바일 최적화 */
+    @media (max-width: 920px) {
+      .container { grid-template-columns: 1fr; }
+      aside { border-left:none; }
+    }
+
+    /* === 분할 보기 개선: 가운데 정렬 + 좌우 여백 + 동일 너비 === */
+
+/* 1) 전체 레이아웃 좌우 여백 */
+.container {
+  padding: 0 24px;               /* 페이지 좌우 여백 */
+}
+
+/* 2) 분할 보기일 때: 같은 너비(1:1) + 가운데 정렬 + 칼럼 간격 */
+.container.split {
+  grid-template-columns: 1fr 1fr; /* 지도 1 : 답변 1 */
+  column-gap: 24px;               /* 두 칼럼 사이 간격 */
+  max-width: 1400px;              /* 전체 최대 폭 제한 */
+  margin: 0 auto;                 /* 가운데 정렬 */
+}
+
+/* 3) 분할 보기에서 사이드바의 좌측 보더/패딩 제거(시각적 균형) */
+.container.split aside {
+  border-left: none;
+  padding: 0;
+}
+
+/* 4) 지도도 카드처럼 보이게: 테두리/라운드 */
+#map {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--cardBorder);
+  background: var(--card);
+}
+
+/* 5) 분할 보기에서 답변 패널은 칼럼 폭을 꽉 채우기 */
+.container.split #answerPanelWrap .answer-panel {
+  width: 100%;      /* 1/2 컬럼 폭에 맞춤 */
+  margin: 0;        /* 바깥 마진 제거 (컨테이너 padding/column-gap 사용) */
+  height: calc(100vh - 100px);
+}
+
+/* 6) 전체 보기에서는 중앙 고정폭 유지 */
+.container.full #answerPanelWrap .answer-panel {
+  width: min(960px, 96vw);
+  margin: 8px auto 24px;
+}
+
+/* 7) 모바일에서 좌우 여백 약간만 */
+@media (max-width: 920px) {
+  .container {
+    padding: 0 12px;
+  }
+}
+
   </style>
 </head>
 <body>
   <header>
     <strong>P 백승주들을 위한 여행 가이드</strong>
+    <!-- 답변 모드에서만 보이는 헤더 버튼들 -->
+    <div id="answerHeaderBtns" class="hidden" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <button id="btnMapMode"   title="지도+사이드바 모드로 돌아가기">지도 보기</button>
+      <button id="btnSplitMode" title="지도와 답변을 좌우로 나란히">분할 보기</button>
+      <button id="btnFullMode"  title="답변만 크게 보기">전체 보기</button>
+      <button id="newQueryBtn"  title="새 요청하기">새 요청</button>
+    </div>
   </header>
-  <div class="container">
+
+  <div class="container" id="layout">
+    <!-- 왼쪽: 지도 -->
     <div id="map"></div>
-    <aside>
-      <div class="card">
+
+    <!-- 오른쪽: 사이드바(입력/결과 또는 분할/전체의 답변 패널) -->
+    <aside id="sidebar">
+      <!-- 입력 카드 -->
+      <div class="card" id="inputCard">
         <label>여행 요청 (예: "감성 카페 코스 추천")</label>
         <input id="query" placeholder="요청 내용을 입력하세요" />
         <div class="row" style="margin-top:8px;">
@@ -50,7 +156,8 @@
         </div>
       </div>
 
-      <div class="card">
+      <!-- 위치 카드 -->
+      <div class="card" id="locationCard">
         <div class="row">
           <div>
             <label>선택 좌표(lat)</label>
@@ -71,27 +178,112 @@
         <div class="muted" style="margin-top:6px;">지도를 클릭하면 위치가 선택됩니다.</div>
       </div>
 
+      <!-- 결과(사이드바 모드에서 보이는 작은 결과) -->
       <div class="card" id="result" style="display:none;">
-        <div style="font-weight:600; margin-bottom:6px;">가이드 응답</div>
-        <div id="answer" style="white-space:pre-wrap;"></div>
-        <hr style="border:none;border-top:1px solid #222; margin:12px 0;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+          <div style="font-weight:600;">가이드 응답</div>
+          <button id="expandAnswerBtn" style="width:auto; padding:6px 10px; border-radius:8px;">크게 보기</button>
+        </div>
+        <div id="answer" style="white-space:pre-wrap; margin-top:6px;"></div>
+        <hr class="answer-divider">
         <div style="font-weight:600; margin-bottom:6px;">출처</div>
         <div id="sources"></div>
+      </div>
+
+      <!-- 답변 패널(분할/전체 공용) -->
+      <div id="answerPanelWrap" class="hidden answer-shell">
+        <div class="answer-panel">
+          <div class="answer-header">
+            <div class="answer-title">가이드 응답</div>
+          </div>
+          <div class="answer-body">
+            <div id="answerFull" class="answer-content"></div>
+            <hr class="answer-divider">
+            <div class="source-title">출처</div>
+            <div id="sourcesFull"></div>
+          </div>
+        </div>
       </div>
     </aside>
   </div>
 
 <script>
   let map, marker, selectedLatLng = null, selectedAddr = "";
+  let lastData = null;  // 최근 응답 저장
+
+  /* ===== 모드 전환 유틸 =====
+     - 기본 모드(지도+사이드바): 입력/위치/작은 결과 카드 사용
+     - 분할 보기: 왼쪽 지도 유지, 오른쪽 답변 패널 표시
+     - 전체 보기: 지도 숨기고 답변 패널만 전체
+  */
+  function toBaseMode() {
+    const layout = document.getElementById('layout');
+    layout.classList.remove('split', 'full');
+    document.getElementById('map').classList.remove('hidden');
+
+    // 사이드바 기본 UI 표시
+    document.getElementById('inputCard').classList.remove('hidden');
+    document.getElementById('locationCard').classList.remove('hidden');
+    document.getElementById('result').style.display = lastData ? 'block' : 'none';
+    document.getElementById('result').classList.remove('hidden');
+
+    // 답변 패널 숨김, 헤더 모드 버튼 숨김
+    document.getElementById('answerPanelWrap').classList.add('hidden');
+    document.getElementById('answerHeaderBtns').classList.add('hidden');
+
+    // 최근 응답 스크롤 노출
+    if (lastData) {
+      document.getElementById('result').scrollIntoView({ behavior:'smooth', block:'start' });
+    }
+  }
+
+  function toSplitMode() {
+    const layout = document.getElementById('layout');
+    layout.classList.add('split');       // 1:1
+    layout.classList.remove('full');
+    document.getElementById('map').classList.remove('hidden');
+
+    // 입력/위치/작은 결과 숨김
+    document.getElementById('inputCard').classList.add('hidden');
+    document.getElementById('locationCard').classList.add('hidden');
+    document.getElementById('result').classList.add('hidden');
+
+    // 큰 답변 패널 표시, 헤더 모드 버튼 표시
+    document.getElementById('answerPanelWrap').classList.remove('hidden');
+    document.getElementById('answerHeaderBtns').classList.remove('hidden');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function toFullMode() {
+    const layout = document.getElementById('layout');
+    layout.classList.add('full');
+    layout.classList.remove('split');
+    document.getElementById('map').classList.add('hidden');
+
+    // 입력/위치/작은 결과 숨김
+    document.getElementById('inputCard').classList.add('hidden');
+    document.getElementById('locationCard').classList.add('hidden');
+    document.getElementById('result').classList.add('hidden');
+
+    // 큰 답변 패널 표시, 헤더 모드 버튼 표시
+    document.getElementById('answerPanelWrap').classList.remove('hidden');
+    document.getElementById('answerHeaderBtns').classList.remove('hidden');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // 가이드 요청 성공 시 기본으로 "분할 보기"로 진입
+  function enterAnswerModeDefault() { toSplitMode(); }
 
   async function initMap() {
-    // 앱 시작 시 가져온 현재 위치를 사용
-    let center = new naver.maps.LatLng(37.5665, 126.9780); // 기본값: 서울 시청
-    
+    // 기본: 서울 시청
+    let center = new naver.maps.LatLng(37.5665, 126.9780);
+
+    // 서버에서 현재 위치 시도
     try {
       const response = await fetch('/v1/location/current');
       const locationData = await response.json();
-      
       if (locationData.status === 'success' && locationData.lat && locationData.lng) {
         center = new naver.maps.LatLng(locationData.lat, locationData.lng);
         console.log('앱 시작 시 설정된 현재 위치로 지도 중심 설정:', locationData.lat, locationData.lng);
@@ -101,19 +293,19 @@
     } catch (error) {
       console.error('현재 위치 가져오기 실패:', error);
     }
-    
+
     map = new naver.maps.Map('map', {
       center, zoom: 14, mapTypeControl: false, scaleControl: true
     });
 
     marker = new naver.maps.Marker({ position: center, map, visible: true });
-    
-    // 현재 위치를 선택된 좌표로 설정
+
+    // 현재 위치 선택 상태
     selectedLatLng = center;
     document.getElementById('lat').value = center.y.toFixed(6);
     document.getElementById('lng').value = center.x.toFixed(6);
-    
-    // 현재 위치의 주소를 가져오기
+
+    // 현재 위치 주소 역지오코딩
     try {
       naver.maps.Service.reverseGeocode({
         coords: center,
@@ -129,6 +321,7 @@
       console.error('주소 가져오기 실패:', err);
     }
 
+    // 지도 클릭으로 위치 선택
     naver.maps.Event.addListener(map, 'click', async function(e) {
       const latlng = e.coord;
       selectedLatLng = latlng;
@@ -138,7 +331,7 @@
       document.getElementById('lat').value = latlng.y.toFixed(6);
       document.getElementById('lng').value = latlng.x.toFixed(6);
 
-      // 리버스 지오코딩 (주소)
+      // 역지오코딩
       try {
         naver.maps.Service.reverseGeocode({
           coords: latlng,
@@ -164,14 +357,8 @@
     const radius = parseInt(document.getElementById('radius').value || "1500", 10);
     const maxResults = parseInt(document.getElementById('maxResults').value || "12", 10);
 
-    if (!selectedLatLng) {
-      alert("지도를 클릭해 위치를 먼저 선택하세요.");
-      return;
-    }
-    if (!query) {
-      alert("요청 내용을 입력하세요.");
-      return;
-    }
+    if (!selectedLatLng) { alert("지도를 클릭해 위치를 먼저 선택하세요."); return; }
+    if (!query) { alert("요청 내용을 입력하세요."); return; }
 
     const body = {
       query,
@@ -197,6 +384,9 @@
       }
       const data = await res.json();
       renderResult(data);
+      lastData = data;
+      // 기본 진입: 분할 보기
+      enterAnswerModeDefault();
     } catch (err) {
       console.error(err);
       alert("요청 중 오류가 발생했습니다.\n" + err.message);
@@ -204,12 +394,12 @@
   }
 
   function renderResult(data) {
+    // (1) 사이드바 모드 콘텐츠(백업/지도 보기로 돌아왔을 때 사용)
     const resultEl = document.getElementById('result');
     const ansEl = document.getElementById('answer');
     const srcEl = document.getElementById('sources');
 
     ansEl.textContent = data.answer || "(응답 없음)";
-
     srcEl.innerHTML = "";
     (data.sources || []).forEach(s => {
       const div = document.createElement('div');
@@ -217,11 +407,39 @@
       div.innerHTML = `• <a href="${s.url}" target="_blank" rel="noreferrer">${s.title}</a> <span class="muted">(${s.type})</span>`;
       srcEl.appendChild(div);
     });
-
     resultEl.style.display = "block";
+
+    // (2) 큰 답변 패널(분할/전체 공용)
+    const ansFullEl = document.getElementById('answerFull');
+    const srcFullEl = document.getElementById('sourcesFull');
+
+    ansFullEl.textContent = data.answer || "(응답 없음)";
+    srcFullEl.innerHTML = "";
+    (data.sources || []).forEach(s => {
+      const div = document.createElement('div');
+      div.className = "srcitem";
+      div.innerHTML = `• <a href="${s.url}" target="_blank" rel="noreferrer">${s.title}</a> <span class="muted">(${s.type})</span>`;
+      srcFullEl.appendChild(div);
+    });
   }
 
-  document.getElementById('go').addEventListener('click', requestGuide);
+  // 이벤트 바인딩
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('go').addEventListener('click', requestGuide);
+
+    // 헤더 모드 전환 버튼
+    document.getElementById('btnMapMode').addEventListener('click', toBaseMode);
+    document.getElementById('btnSplitMode').addEventListener('click', toSplitMode);
+    document.getElementById('btnFullMode').addEventListener('click', toFullMode);
+
+    document.getElementById('newQueryBtn').addEventListener('click', () => {
+      toBaseMode();
+      document.getElementById('query').focus();
+    });
+
+    // 사이드바의 "크게 보기" → 전체 보기로
+    document.getElementById('expandAnswerBtn').addEventListener('click', toFullMode);
+  });
 
   // 지도 init
   window.addEventListener('load', initMap);
