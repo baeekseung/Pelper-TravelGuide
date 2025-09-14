@@ -13,3 +13,4 @@ langchain_core
 selenium
 openpyxl
 langchain_teddynote
+Pillow

@@ -5,6 +5,7 @@ from typing import List
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from jinja2 import Template
 from app.schemas import GuideQuery, GuideResponse, SourceItem, LatLng
 from app.services.naver_client import NaverClient, pick_top
@@ -24,6 +25,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 정적 파일 서빙 설정 (이미지 폴더)
+app.mount("/images", StaticFiles(directory="images"), name="images")
 
 current_location = {"lat": 37.5665, "lng": 126.9780}  # 기본값: 서울 시청
 

@@ -3,6 +3,8 @@ import os
 import urllib.parse
 import httpx
 from bs4 import BeautifulSoup
+from PIL import Image
+import io
 
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -33,8 +35,53 @@ def _dedup(urls, k=5, skip=0):
     return out[skip : skip + k]
 
 
+def _resize_image(
+    image_data: bytes, max_width: int = 800, max_height: int = 600, quality: int = 85
+) -> bytes:
+    """이미지를 리사이즈하고 최적화합니다."""
+    try:
+        # 이미지 열기
+        image = Image.open(io.BytesIO(image_data))
+
+        # 원본 크기
+        original_width, original_height = image.size
+
+        # 비율을 유지하면서 리사이즈 계산
+        ratio = min(max_width / original_width, max_height / original_height)
+
+        # 이미지가 이미 작으면 리사이즈하지 않음
+        if ratio >= 1:
+            new_width, new_height = original_width, original_height
+        else:
+            new_width = int(original_width * ratio)
+            new_height = int(original_height * ratio)
+
+        # 리사이즈
+        resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        # RGB로 변환 (JPEG 저장을 위해)
+        if resized_image.mode in ("RGBA", "LA", "P"):
+            resized_image = resized_image.convert("RGB")
+
+        # 바이트로 저장
+        output = io.BytesIO()
+        resized_image.save(output, format="JPEG", quality=quality, optimize=True)
+        return output.getvalue()
+
+    except Exception as e:
+        print(f"이미지 리사이즈 실패: {e}")
+        return image_data  # 실패시 원본 반환
+
+
 async def fetch_and_save_images(
-    query: str, save_dir: str = "./images", skip: int = 2, limit: int = 3
+    query: str,
+    save_dir: str = "./images",
+    skip: int = 2,
+    limit: int = 3,
+    save_name: str = "",
+    max_width: int = 200,
+    max_height: int = 200,
+    quality: int = 85,
 ):
     os.makedirs(save_dir, exist_ok=True)
     url = (
@@ -59,22 +106,20 @@ async def fetch_and_save_images(
             try:
                 resp = await s.get(img_url)
                 if resp.status_code == 200:
+                    resized_data = _resize_image(
+                        resp.content,
+                        max_width=max_width,
+                        max_height=max_height,
+                        quality=quality,
+                    )
+
                     ext = ".jpg"
-                    fname = os.path.join(save_dir, f"{query}_{i}{ext}")
+                    fname = os.path.join(save_dir, f"{save_name}_{i}{ext}")
                     with open(fname, "wb") as f:
-                        f.write(resp.content)
+                        f.write(resized_data)
                     saved_files.append(fname)
-                    print("저장 완료:", fname)
+                    print(f"저장 완료 (리사이즈됨): {fname}")
             except Exception as e:
                 print("다운로드 실패:", img_url, e)
 
         return saved_files
-
-# 사용 예시
-if __name__ == "__main__":
-    import asyncio
-
-    res = asyncio.run(
-        fetch_and_save_images("경상북도 청도군 화양읍 파이노스", skip=2, limit=3)
-    )
-    print("저장된 파일들:", res)

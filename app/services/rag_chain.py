@@ -3,19 +3,26 @@ from langchain_openai import ChatOpenAI
 from langchain.schema import HumanMessage, SystemMessage
 from ..config import settings
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from langchain_teddynote import logging
+
 logging.langsmith("PELPER")
 
-SYSTEM_PROMPT = """당신은 여행 가이드입니다.
+SYSTEM_PROMPT = f"""당신은 여행 가이드입니다.
 사용자는 당신에게 여행에 대한 요청사항을 알려주면 그에 맞는 여행 정보를 제공합니다.
 주어지는 자료는 사용자의 요청사항에 맞게 네이버에서 추천장소 정보와 그에 해당하는 블로그 및 리뷰 내용입니다.
 5개 이하의 장소정보가 제공되고, 당신은 이를 기반으로 자료에 포함된 모든 장소의 정보를 요약해서 제공합니다.
 답변은 주어진 자료를 최대한 자세하게, 사용자의 요청에 적절한 답변을 해주세요.
 답변에서 블로그 내용을 언급할때 출처 링크를 달아주세요.
 만약 주어진 자료가 없다면 "주변에 알맞는 장소가 없습니다" 라고 답변해줘.
-주 언어는 한국어를 사용하시고, 존댓말로 답변해주세요."""
+주 언어는 한국어를 사용하시고, 존댓말로 답변해주세요.
+
+추가로 장소를 소개하면서 대표 이미지 3개를 같이 출력해주고 싶어요.
+이미지는 상대 경로를 사용해주세요. 각 장소의 이미지는 ./images/Place_장소번호_1.jpg, ./images/Place_장소번호_2.jpg, ./images/Place_장소번호_3.jpg 형식으로 저장되어 있습니다.(ex: ./images/Place_1_1.jpg, ./images/Place_1_2.jpg, ./images/Place_1_3.jpg).
+"### 장소 이름" 바로 다음 줄에 가로로 나란히 이미지 3개를 출력해주세요.
+"""
 
 
 USER_PROMPT = """사용자의 요청사항: 
@@ -25,7 +32,10 @@ USER_PROMPT = """사용자의 요청사항:
 {context}
 """
 
-async def run_chain(user_query: str, context: str, model_name: str = "gpt-4.1-2025-04-14") -> str:
+
+async def run_chain(
+    user_query: str, context: str, model_name: str = "gpt-4.1-2025-04-14"
+) -> str:
     llm = ChatOpenAI(api_key=settings.openai_api_key, model=model_name, temperature=0.1)
     ctx = context
     messages = [

@@ -49,29 +49,29 @@ async def build_context(places: List[str], address: str):
 
         results = search_places(f"{address} {place}", display=1)
         if len(results) == 1:
-            Context_Result += f"# Place {Place_Num} - {place}\n## 장소 이름: {results[0].title}\n"
-            Context_Result += f"## 카테고리: {results[0].category}\n"
-            Context_Result += f"## 전화: {results[0].telephone}\n"
-            Context_Result += f"## 도로명주소: {results[0].roadAddress}\n"
-            Context_Result += f"## 링크: {results[0].link}\n"
+            Context_Result += f"# Place {Place_Num}]\n### 장소 이름: {results[0].title}\n"
+            Context_Result += f"### 카테고리: {results[0].category}\n"
+            Context_Result += f"### 전화: {results[0].telephone}\n"
+            Context_Result += f"### 도로명주소: {results[0].roadAddress}\n"
+            Context_Result += f"### 링크: {results[0].link}\n"
             Context_Result += "\n"
 
             blog_links = await fetch_top_blog_links_async(pid, top_k=5, headless=True)
             driver = build_driver(headless=True)
             for blog_link in blog_links:
                 blog_content = extract_blog_content(blog_link.strip(), driver)
-                Context_Result += f"## Blog {Blog_Num}\n블로그 링크: {blog_link}\n"
+                Context_Result += f"## Place {Place_Num}'s Blog {Blog_Num}\n###블로그 링크: {blog_link}\n"
                 Context_Result += f"### 블로그 내용: {blog_content['text']}\n"
                 Context_Result += "\n"
                 Blog_Num += 1
 
             reviews = await crawl_reviews_text_async(pid, headless=True, batches=3)
             for review in reviews:
-                Context_Result += f"## Reviews {Reviews_Num}\n### 리뷰 내용: {review}\n"
-                Context_Result += "\n"
+                Context_Result += f"## Place {Place_Num}'s Reviews {Reviews_Num}\n### 리뷰 내용: {review}\n"
+                Context_Result += "\n\n"
                 Reviews_Num += 1
-                
-            images = await fetch_and_save_images(f"{address} {place}", skip=2, limit=3)
+
+            images = await fetch_and_save_images(f"{address} {place}", skip=2, limit=3, save_name=f"Place_{Place_Num}")
 
             Place_Num += 1
 
