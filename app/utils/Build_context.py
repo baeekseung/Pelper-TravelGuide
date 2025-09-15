@@ -36,32 +36,50 @@ Query = ""
 async def build_context(places: List[str], address: str):
     Place_Num = 1
     Context_Result = ""
+    reference_link = []
     collected = []  # collected 데이터를 저장할 리스트
     for place in places:
         Reviews_Num = 1
         Blog_Num = 1
-        
+
         # pid 번호 가져오기
         pid = await get_place_pid_async(f"{address} {place}")
-        if pid==None:
+        if pid == None:
             print("pid is None")
             continue
 
         results = search_places(f"{address} {place}", display=1)
         if len(results) == 1:
-            Context_Result += f"# Place {Place_Num}]\n### 장소 이름: {results[0].title}\n"
+
+            images, save_result = await fetch_and_save_images(
+                f"{address} {place}", skip=2, limit=3, save_name=f"Place_{Place_Num}"
+            )
+
+            Context_Result += (
+                f"# Place {Place_Num}\n### 장소 이름: {results[0].title}\n"
+            )
             Context_Result += f"### 카테고리: {results[0].category}\n"
             Context_Result += f"### 전화: {results[0].telephone}\n"
             Context_Result += f"### 도로명주소: {results[0].roadAddress}\n"
             Context_Result += f"### 링크: {results[0].link}\n"
+            Context_Result += f"### 이미지 개수: {len(images)}\n"
             Context_Result += "\n"
 
             blog_links = await fetch_top_blog_links_async(pid, top_k=5, headless=True)
             driver = build_driver(headless=True)
             for blog_link in blog_links:
                 blog_content = extract_blog_content(blog_link.strip(), driver)
+                blog_title = blog_content.get("title", "블로그") or "블로그"
                 Context_Result += f"## Place {Place_Num}'s Blog {Blog_Num}\n###블로그 링크: {blog_link}\n"
                 Context_Result += f"### 블로그 내용: {blog_content['text']}\n"
+                reference_link.append(
+                    {
+                        "title": blog_title,
+                        "url": blog_link,
+                        "type": "blog",
+                        "score": 0.0,
+                    }
+                )
                 Context_Result += "\n"
                 Blog_Num += 1
 
@@ -71,8 +89,6 @@ async def build_context(places: List[str], address: str):
                 Context_Result += "\n\n"
                 Reviews_Num += 1
 
-            images = await fetch_and_save_images(f"{address} {place}", skip=2, limit=3, save_name=f"Place_{Place_Num}")
-
             Place_Num += 1
 
-    return Context_Result
+    return Context_Result, reference_link

@@ -178,6 +178,8 @@ def _pick_body_block_requests(url: str) -> Dict[str, str]:
     r = requests.get(murl, headers={"User-Agent": UA}, timeout=12, verify=False)
     r.raise_for_status()
     soup = BeautifulSoup(r.text, "lxml")
+    # 페이지 <title> 추출 시도
+    page_title = (soup.title.string or "").strip() if soup.title else ""
 
     for sel in [
         "div.se-main-container",
@@ -197,6 +199,7 @@ def _pick_body_block_requests(url: str) -> Dict[str, str]:
                 "selector": sel,
                 "text": text,
                 "html": str(cont),
+                "title": page_title,
             }
 
     raise RuntimeError("requests 폴백에서도 본문 컨테이너를 찾지 못했습니다.")
@@ -222,11 +225,14 @@ def extract_blog_content(url: str, driver: webdriver.Chrome) -> Dict[str, str]:
         time.sleep(SETTLE_SLEEP)
 
         block = _pick_body_block_selenium(driver)
+        # Selenium에서 문서 제목 사용
+        page_title = (driver.title or "").strip()
         return {
             "url": url,
             "selector": block["selector"],
             "text": block["text"],
             "html": block["html"],
+            "title": page_title,
         }
 
     except (
@@ -242,6 +248,7 @@ def extract_blog_content(url: str, driver: webdriver.Chrome) -> Dict[str, str]:
                 "selector": fb.get("selector", ""),
                 "text": fb.get("text", ""),
                 "html": fb.get("html", ""),
+                "title": fb.get("title", ""),
             }
         except Exception as fallback_error:
             print(f"requests 폴백도 실패: {fallback_error}")
@@ -250,6 +257,7 @@ def extract_blog_content(url: str, driver: webdriver.Chrome) -> Dict[str, str]:
                 "selector": "error",
                 "text": f"콘텐츠 추출 실패: {str(fallback_error)}",
                 "html": "",
+                "title": "",
             }
 
 

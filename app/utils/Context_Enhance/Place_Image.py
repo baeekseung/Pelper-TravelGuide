@@ -83,6 +83,7 @@ async def fetch_and_save_images(
     max_height: int = 200,
     quality: int = 85,
 ):
+    save_result = False
     os.makedirs(save_dir, exist_ok=True)
     url = (
         "https://search.naver.com/search.naver?"
@@ -118,8 +119,9 @@ async def fetch_and_save_images(
                     with open(fname, "wb") as f:
                         f.write(resized_data)
                     saved_files.append(fname)
-                    print(f"저장 완료 (리사이즈됨): {fname}")
+                    # print(f"저장 완료 (리사이즈됨): {fname}")
+                    save_result = True
             except Exception as e:
                 print("다운로드 실패:", img_url, e)
 
-        return saved_files
+        return saved_files, save_result

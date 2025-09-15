@@ -16,7 +16,7 @@ from app.utils.Refine_query import refine_query
 from app.utils.Build_context import build_context
 from app.utils.Context_Enhance.blog_links import fetch_top_blog_links_async
 
-app = FastAPI(title="Location-based Travel Guide API", version="0.1.0")
+app = FastAPI(title="PELPER-Travel-Guide", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,7 +30,6 @@ app.add_middleware(
 app.mount("/images", StaticFiles(directory="images"), name="images")
 
 current_location = {"lat": 37.5665, "lng": 126.9780}  # 기본값: 서울 시청
-
 
 # 사용자의 현재 위치를 current_location에 저장
 async def get_startup_location():
@@ -90,7 +89,6 @@ async def guide_query(body: GuideQuery):
         q = f"{resolved_address} {body.query}"
 
     q = await refine_query(resolved_address, q)
-    print(f"q: {q}")
 
     local = await client.search_local(q, display=min(10, body.max_results))
     local_top = pick_top(local, kind="place", k=5)
@@ -100,7 +98,7 @@ async def guide_query(body: GuideQuery):
         place_list.append(item["title"])
     print("places", place_list)
 
-    collected = await build_context(place_list, resolved_address)
+    collected, reference_link = await build_context(place_list, resolved_address)
 
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
 
@@ -108,7 +106,7 @@ async def guide_query(body: GuideQuery):
 
     return GuideResponse(
         answer=answer,
-        sources=[],
+        sources=reference_link,
         center=center,
         resolved_address=resolved_address,
         meta={},
