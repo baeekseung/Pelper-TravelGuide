@@ -1,20 +1,18 @@
 import pathlib
 import os
 import asyncio
-from typing import List
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Template
-from app.schemas import GuideQuery, GuideResponse, SourceItem, LatLng
+from app.schemas import GuideQuery, GuideResponse, LatLng
 from app.services.naver_client import NaverClient, pick_top
 from app.services.rag_chain import run_chain
 from app.utils.geo import resolve_location
 from app.utils.Loaction_getter import get_location
 from app.utils.Refine_query import refine_query
 from app.utils.Build_context import build_context
-from app.utils.Context_Enhance.blog_links import fetch_top_blog_links_async
 
 app = FastAPI(title="PELPER-Travel-Guide", version="0.1.0")
 
@@ -54,7 +52,7 @@ async def healthz():
     return {"status": "ok"}
 
 
-# 사용자의 위도 경도를 dict로 반환
+# Frontend에서 사용자의 위도 경도를 반환
 @app.get("/v1/location/current")
 async def get_current_location():
     return {
@@ -84,11 +82,7 @@ async def guide_query(body: GuideQuery):
 
     client = NaverClient()
 
-    q = body.query
-    if body.location_text:
-        q = f"{resolved_address} {body.query}"
-
-    q = await refine_query(resolved_address, q)
+    q = await refine_query(resolved_address, body.query)
 
     local = await client.search_local(q, display=min(10, body.max_results))
     local_top = pick_top(local, kind="place", k=5)
