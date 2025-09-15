@@ -29,6 +29,7 @@ app.mount("/images", StaticFiles(directory="images"), name="images")
 
 current_location = {"lat": 37.5665, "lng": 126.9780}  # 기본값: 서울 시청
 
+
 # 사용자의 현재 위치를 current_location에 저장
 async def get_startup_location():
     global current_location
