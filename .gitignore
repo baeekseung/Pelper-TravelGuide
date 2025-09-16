@@ -1,5 +1,6 @@
 .env
 .pyc
 __pycache__/
-images/
+images/*
 .jpg
+!images/Place_1_1.jpg
