@@ -422,6 +422,11 @@
 
     // 지도 클릭으로 위치 선택
     naver.maps.Event.addListener(map, 'click', async function(e) {
+      // 분할 보기 모드에서는 사용자 위치 마커 이동을 막는다
+      const layoutEl = document.getElementById('layout');
+      if (layoutEl && layoutEl.classList.contains('split')) {
+        return;
+      }
       const latlng = e.coord;
       selectedLatLng = latlng;
       marker.setPosition(latlng);
