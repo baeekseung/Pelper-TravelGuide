@@ -119,6 +119,26 @@
     .prose table { width:100%; border-collapse:collapse; margin:1em 0; }
     .prose th,.prose td { border:1px solid #2a2b2f; padding:.6em .7em; text-align:left; }
     .prose thead th { background:#101114; }
+
+    /* 마커 스타일 */
+    .marker-info {
+      background: var(--card);
+      border: 1px solid var(--cardBorder);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      max-width: 200px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    .marker-info h4 {
+      margin: 0 0 4px 0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .marker-info p {
+      margin: 2px 0;
+      color: var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -143,18 +163,6 @@
       <div class="card" id="inputCard">
         <label>여행 요청 (예: "감성 카페 코스 추천")</label>
         <input id="query" placeholder="요청 내용을 입력하세요" />
-        <div class="row" style="margin-top:8px;">
-          <div>
-            <label>반경(m)</label>
-            <input id="radius" type="number" value="1500" min="100" step="100" />
-          </div>
-          <div>
-            <label>결과 개수</label>
-            <select id="maxResults">
-              <option>8</option><option selected>12</option><option>16</option><option>20</option>
-            </select>
-          </div>
-        </div>
       </div>
 
       <!-- 위치 카드 -->
@@ -211,6 +219,8 @@
 <script>
   let map, marker, selectedLatLng = null, selectedAddr = "";
   let lastData = null;  // 최근 응답 저장
+  let placeMarkers = [];  // 장소 마커들
+  let infoWindow = null;  // 정보창
 
   /* ===== 모드 전환 유틸 ===== */
   function toBaseMode() {
@@ -266,6 +276,91 @@
   // 가이드 요청 성공 시 기본으로 "분할 보기"로 진입
   function enterAnswerModeDefault() { toSplitMode(); }
 
+  /* ===== 마커 관련 함수들 ===== */
+  function clearPlaceMarkers() {
+    placeMarkers.forEach(marker => marker.setMap(null));
+    placeMarkers = [];
+    if (infoWindow) {
+      infoWindow.close();
+    }
+  }
+
+  function addPlaceMarkers(places) {
+    console.log('=== addPlaceMarkers 시작 ===');
+    console.log('addPlaceMarkers 호출됨, 장소 개수:', places.length);
+    console.log('지도 객체:', map);
+    console.log('지도가 null인가?', map === null);
+    clearPlaceMarkers();
+    
+    places.forEach((place, index) => {
+      console.log(`--- 장소 ${index + 1} 처리 시작 ---`);
+      console.log(`장소 ${index + 1}:`, place);
+      
+      // WGS84 좌표 유효성 검사
+      if (!place.lat || !place.lng || isNaN(place.lat) || isNaN(place.lng)) {
+        console.log(`❌ 장소 ${index + 1} 좌표가 유효하지 않음:`, place.lat, place.lng);
+        return;
+      }
+      
+      // 좌표 범위 검사 (한국 지역)
+      if (place.lat < 33 || place.lat > 38.5 || place.lng < 124 || place.lng > 132) {
+        console.log(`❌ 장소 ${index + 1} 좌표가 한국 범위를 벗어남:`, place.lat, place.lng);
+        return;
+      }
+      
+      console.log(`✅ 장소 ${index + 1} 좌표 유효성 검사 통과`);
+      
+      const position = new naver.maps.LatLng(place.lat, place.lng);
+      console.log(`장소 ${index + 1} 위치 객체 생성:`, position);
+      
+      // 장소 마커 생성 (다른 색상 사용)
+      console.log(`장소 ${index + 1} 마커 생성 시도...`);
+      try {
+        const placeMarker = new naver.maps.Marker({
+          position: position,
+          map: map,
+          icon: {
+            content: `<div style="background: #ff6b6b; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${index + 1}</div>`,
+            size: new naver.maps.Size(24, 24),
+            anchor: new naver.maps.Point(12, 12)
+          }
+        });
+        
+        console.log(`✅ 장소 ${index + 1} 마커 생성 완료:`, placeMarker);
+        placeMarkers.push(placeMarker);
+        console.log(`장소 ${index + 1} 마커 배열에 추가됨. 현재 마커 개수:`, placeMarkers.length);
+      } catch (error) {
+        console.log(`❌ 장소 ${index + 1} 마커 생성 실패:`, error);
+      }
+
+      console.log(`--- 장소 ${index + 1} 처리 완료 ---`);
+    });
+    
+    console.log(`=== addPlaceMarkers 완료. 총 마커 개수: ${placeMarkers.length} ===`);
+
+    // 모든 마커가 보이도록 지도 범위 조정
+    if (places.length > 0) {
+      console.log('지도 범위 조정 시작');
+      const bounds = new naver.maps.LatLngBounds();
+      
+      places.forEach(place => {
+        if (place.lat && place.lng && !isNaN(place.lat) && !isNaN(place.lng)) {
+          bounds.extend(new naver.maps.LatLng(place.lat, place.lng));
+          console.log(`범위에 추가: ${place.title} (${place.lat}, ${place.lng})`);
+        }
+      });
+      
+      // 사용자 위치도 포함
+      if (selectedLatLng) {
+        bounds.extend(selectedLatLng);
+        console.log('사용자 위치도 범위에 추가');
+      }
+      
+      console.log('지도 범위 조정 실행:', bounds);
+      map.fitBounds(bounds);
+    }
+  }
+
   async function initMap() {
     // 기본: 서울 시청
     let center = new naver.maps.LatLng(37.5665, 126.9780);
@@ -288,7 +383,16 @@
       center, zoom: 14, mapTypeControl: false, scaleControl: true
     });
 
-    marker = new naver.maps.Marker({ position: center, map, visible: true });
+    marker = new naver.maps.Marker({ 
+      position: center, 
+      map, 
+      visible: true,
+      icon: {
+        content: `<div style="background: #4CAF50; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">📍</div>`,
+        size: new naver.maps.Size(24, 24),
+        anchor: new naver.maps.Point(12, 12)
+      }
+    });
 
     // 현재 위치 선택 상태
     selectedLatLng = center;
@@ -405,12 +509,54 @@
     const title = titleMatch ? (titleMatch[1] || titleMatch[2]) : null;
     const titleEl = document.querySelector('.answer-title');
     titleEl.textContent = title || "가이드 응답";
+
+    // (3) 지도에 마커 표시
+    console.log('=== 마커 표시 시작 ===');
+    console.log('응답 데이터:', data);
+    console.log('장소 정보:', data.places);
+    console.log('장소 개수:', data.places ? data.places.length : 0);
+    console.log('사용자 위치:', data.center);
+    
+    // 사용자 위치 마커 표시
+    if (data.center) {
+      console.log('사용자 위치 마커 생성:', data.center);
+      const userPosition = new naver.maps.LatLng(data.center.lat, data.center.lng);
+      
+      // 기존 사용자 마커 제거
+      if (marker) {
+        marker.setMap(null);
+      }
+      
+      // 새로운 사용자 마커 생성
+      marker = new naver.maps.Marker({
+        position: userPosition,
+        map: map,
+        visible: true,
+        icon: {
+          content: `<div style="background: #4CAF50; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">📍</div>`,
+          size: new naver.maps.Size(24, 24),
+          anchor: new naver.maps.Point(12, 12)
+        }
+      });
+      
+      // 지도 중심을 사용자 위치로 이동
+      map.setCenter(userPosition);
+      map.setZoom(15);
+    }
+    
+    if (data.places && data.places.length > 0) {
+      console.log('장소 마커 추가 시작');
+      addPlaceMarkers(data.places);
+    } else {
+      console.log('장소 정보가 없습니다');
+    }
+    console.log('=== 마커 표시 완료 ===');
   }
 
   async function requestGuide() {
     const query = document.getElementById('query').value.trim();
-    const radius = parseInt(document.getElementById('radius').value || "1500", 10);
-    const maxResults = parseInt(document.getElementById('maxResults').value || "12", 10);
+    const radius = 1500; // 기본값
+    const maxResults = 12; // 기본값
 
     if (!selectedLatLng) { alert("지도를 클릭해 위치를 먼저 선택하세요."); return; }
     if (!query) { alert("요청 내용을 입력하세요."); return; }

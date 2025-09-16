@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
+
 class GuideQuery(BaseModel):
     query: str = Field(..., description="사용자의 요청")
     location_text: Optional[str] = None
@@ -12,19 +13,33 @@ class GuideQuery(BaseModel):
     llm_model: str = "gpt-4.1-2025-04-14"
     safe_mode: bool = True
 
+
 class SourceItem(BaseModel):
     title: str
     url: str
     type: str
     score: float
 
+
 class LatLng(BaseModel):
     lat: float
     lng: float
+
+
+class PlaceInfo(BaseModel):
+    title: str
+    category: str
+    telephone: str
+    roadAddress: str
+    link: str
+    lat: float
+    lng: float
+
 
 class GuideResponse(BaseModel):
     answer: str
     sources: List[SourceItem]
     center: Optional[LatLng] = None
     resolved_address: Optional[str] = None
+    places: List[PlaceInfo] = []
     meta: dict = {}

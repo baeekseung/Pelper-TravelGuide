@@ -93,17 +93,23 @@ async def guide_query(body: GuideQuery):
         place_list.append(item["title"])
     print("places", place_list)
 
-    collected, reference_link = await build_context(place_list, resolved_address)
+    collected, reference_link, places_info = await build_context(
+        place_list, resolved_address
+    )
 
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
 
+    # 사용자 위치를 center로 사용 (geocoding된 주소 좌표)
     center = LatLng(lat=lat, lng=lng) if lat is not None and lng is not None else None
+
+    print(f"응답에 포함될 장소 정보: {places_info}")
 
     return GuideResponse(
         answer=answer,
         sources=reference_link,
         center=center,
         resolved_address=resolved_address,
+        places=places_info,
         meta={},
     )
 
