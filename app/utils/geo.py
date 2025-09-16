@@ -1,6 +1,26 @@
 from typing import Optional, Tuple
 import requests
 from ..config import settings
+import os
+
+def geocode_address(address):
+    url = f"https://maps.apigw.ntruss.com/map-geocode/v2/geocode?query={address}"
+    headers = {
+        'X-NCP-APIGW-API-KEY-ID': settings.naver_map_client_id,
+        'X-NCP-APIGW-API-KEY': settings.naver_map_reversegeocode_client_secret
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        if data['addresses']:
+            location = data['addresses'][0]
+            return location['y'], location['x']
+        else:
+            return None, None
+    else:
+        print(f"Error {response.status_code}: {response.text}")
+        return None, None
+        
 
 def naver_reverse_address(lat: float, lng: float):
     url = "https://maps.apigw.ntruss.com/map-reversegeocode/v2/gc"
@@ -18,6 +38,7 @@ def naver_reverse_address(lat: float, lng: float):
     r = requests.get(url, headers=headers, params=params)
     r.raise_for_status()
     return r.json()
+
 
 def extract_clean_address(geocoding_result: dict) -> str:
     if geocoding_result.get("status", {}).get("code") != 0:
@@ -104,20 +125,22 @@ def extract_clean_address(geocoding_result: dict) -> str:
     # 읍/면/동까지만 반환
     if "road_address" in address_info:
         road = address_info["road_address"]
-        main_address = road.get('full_address', '').strip()
+        main_address = road.get("full_address", "").strip()
         address_info["main_address"] = main_address
     elif "land_address" in address_info:
         land = address_info["land_address"]
-        main_address = land.get('full_address', '').strip()
+        main_address = land.get("full_address", "").strip()
         address_info["main_address"] = main_address
     else:
         admin = address_info.get("administrative", {})
         # area3이 읍/면/동이면 포함, 아니면 area1 area2까지만
-        area1 = admin.get('area1', '')
-        area2 = admin.get('area2', '')
-        area3 = admin.get('area3', '')
+        area1 = admin.get("area1", "")
+        area2 = admin.get("area2", "")
+        area3 = admin.get("area3", "")
         main_address = f"{area1} {area2}"
-        if area3 and (area3.endswith("읍") or area3.endswith("면") or area3.endswith("동")):
+        if area3 and (
+            area3.endswith("읍") or area3.endswith("면") or area3.endswith("동")
+        ):
             main_address += f" {area3}"
         address_info["main_address"] = main_address.strip()
 
