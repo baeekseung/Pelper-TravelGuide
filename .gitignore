@@ -3,4 +3,6 @@
 __pycache__/
 images/*
 .jpg
-!images/Place_1_1.jpg
+!images/Place_1_1.jpg\
+cache/
+.pkl
