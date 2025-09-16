@@ -13,6 +13,7 @@ from app.utils.geo import resolve_location
 from app.utils.Loaction_getter import get_location
 from app.utils.Refine_query import refine_query
 from app.utils.Build_context import build_context
+import time
 
 app = FastAPI(title="PELPER-Travel-Guide", version="0.1.0")
 
@@ -65,6 +66,7 @@ async def get_current_location():
 
 @app.post("/v1/guide/query", response_model=GuideResponse)
 async def guide_query(body: GuideQuery):
+    t0 = time.perf_counter()
     # 텍스트 주소, 위도, 경도 정보가 없을때
     if not body.location_text and (body.lat is None or body.lng is None):
         raise HTTPException(
@@ -93,11 +95,19 @@ async def guide_query(body: GuideQuery):
         place_list.append(item["title"])
     print("places", place_list)
 
+    # 수집량 파라미터 (필요시 body로부터 받아 커스터마이즈 가능)
     collected, reference_link, places_info = await build_context(
-        place_list, resolved_address
+        place_list,
+        resolved_address,
+        blog_top_k=min(3, len(place_list)),
+        review_batches=2,
+        image_limit=3,
+        max_concurrency=5,
     )
 
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
+    elapsed_ms = int((time.perf_counter() - t0) * 1000)
+    print(f"요청 처리 시간: {elapsed_ms} ms")
 
     # 사용자 위치를 center로 사용 (geocoding된 주소 좌표)
     center = LatLng(lat=lat, lng=lng) if lat is not None and lng is not None else None
@@ -110,7 +120,7 @@ async def guide_query(body: GuideQuery):
         center=center,
         resolved_address=resolved_address,
         places=places_info,
-        meta={},
+        meta={"elapsed_ms": elapsed_ms},
     )
 
 
