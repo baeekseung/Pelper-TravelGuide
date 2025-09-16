@@ -223,6 +223,11 @@
   let infoWindow = null;  // 정보창
 
   /* ===== 모드 전환 유틸 ===== */
+  // 간단한 HTML 이스케이프(마커 라벨 XSS 방지)
+  function escapeHtml(str) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(str || "").replace(/[&<>"']/g, ch => map[ch]);
+  }
   function toBaseMode() {
     const layout = document.getElementById('layout');
     layout.classList.remove('split', 'full');
@@ -320,7 +325,7 @@
           position: position,
           map: map,
           icon: {
-            content: `<div style="background: #ff6b6b; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${index + 1}</div>`,
+            content: `<div style="background:#ff6b6b; color:#fff; padding:6px 10px; border-radius:14px; font-size:12px; font-weight:600; border:2px solid #fff; box-shadow:0 2px 4px rgba(0,0,0,0.3); white-space:nowrap; transform: translate(-50%, -110%); position: relative; left: 12px; top: 12px;">${escapeHtml(place.title || '장소')}</div>`,
             size: new naver.maps.Size(24, 24),
             anchor: new naver.maps.Point(12, 12)
           }
