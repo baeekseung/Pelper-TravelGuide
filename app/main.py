@@ -25,8 +25,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 정적 파일 서빙 설정 (이미지 폴더)
-app.mount("/images", StaticFiles(directory="images"), name="images")
+
+class NoCacheStaticFiles(StaticFiles):
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        # 200 응답에만 캐시 무력화 헤더 부여
+        if getattr(response, "status_code", None) == 200:
+            response.headers["Cache-Control"] = (
+                "no-store, no-cache, must-revalidate, max-age=0, private"
+            )
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+
+# 정적 파일 서빙 설정 (이미지 폴더) - 캐시 방지
+app.mount("/images", NoCacheStaticFiles(directory="images"), name="images")
 
 current_location = {"lat": 37.5665, "lng": 126.9780}  # 기본값: 서울 시청
 
@@ -95,8 +109,14 @@ async def guide_query(body: GuideQuery):
         place_list.append(item["title"])
     print("places", place_list)
 
+    # 수집량 파라미터 (필요시 body로부터 받아 커스터마이즈 가능)
     collected, reference_link, places_info = await build_context(
-        place_list, resolved_address
+        place_list,
+        resolved_address,
+        blog_top_k=min(3, len(place_list)),
+        review_batches=2,
+        image_limit=3,
+        max_concurrency=5,
     )
 
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
@@ -104,8 +124,6 @@ async def guide_query(body: GuideQuery):
 
     # 사용자 위치를 center로 사용 (geocoding된 주소 좌표)
     center = LatLng(lat=lat, lng=lng) if lat is not None and lng is not None else None
-
-    print(f"응답에 포함될 장소 정보: {places_info}")
 
     print(f"요청 처리 시간: {elapsed_ms} ms")
 

@@ -10,6 +10,13 @@ UA_MOBILE = (
 )
 
 
+# === Speed tunables ===
+WAIT_SHORT_MS = 120
+WAIT_MED_MS = 180
+SCROLL_SMALL = 800
+SCROLL_MED = 1200
+
+
 def _normalize_to_mplace(pid: str) -> str:
     return (
         f"https://m.place.naver.com/restaurant/{pid}/review/visitor?reviewSort=recent"
@@ -57,7 +64,7 @@ async def _inner_text_async(page, loc) -> str:
     ).strip()
 
 
-def _click_safe(page, loc, wait_ms: int = 180) -> bool:
+def _click_safe(page, loc, wait_ms: int = WAIT_MED_MS) -> bool:
     try:
         loc.scroll_into_view_if_needed()
         loc.click()
@@ -75,7 +82,7 @@ def _click_safe(page, loc, wait_ms: int = 180) -> bool:
             return False
 
 
-async def _click_safe_async(page, loc, wait_ms: int = 180) -> bool:
+async def _click_safe_async(page, loc, wait_ms: int = WAIT_MED_MS) -> bool:
     try:
         await loc.scroll_into_view_if_needed()
         await loc.click()
@@ -98,7 +105,7 @@ def _click_next_batch(page) -> bool:
         btn = page.locator(sel)
         if btn.count() == 0:
             return False
-        ok = _click_safe(page, btn.first, 250)
+        ok = _click_safe(page, btn.first, WAIT_MED_MS)
         if ok:
             print(f"[debug] next-batch clicked by: {sel}")
         return ok
@@ -119,7 +126,7 @@ def _click_next_batch(page) -> bool:
                 "(el)=>{ const a=el.closest('a'); if(!a) return false; a.click(); return true; }",
                 h,
             )
-            page.wait_for_timeout(250)
+            page.wait_for_timeout(WAIT_MED_MS)
             if ok:
                 print("[debug] next-batch clicked by closest('a')")
                 return True
@@ -146,7 +153,7 @@ def _click_next_batch(page) -> bool:
                 page.mouse.click(
                     box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
                 )
-                page.wait_for_timeout(250)
+                page.wait_for_timeout(WAIT_MED_MS)
                 print("[debug] next-batch clicked by mouse coords")
                 return True
         except Exception:
@@ -160,7 +167,7 @@ async def _click_next_batch_async(page) -> bool:
         btn = page.locator(sel)
         if await btn.count() == 0:
             return False
-        ok = await _click_safe_async(page, btn.first, 250)
+        ok = await _click_safe_async(page, btn.first, WAIT_MED_MS)
         if ok:
             # print(f"[debug] next-batch clicked by: {sel}")
             pass
@@ -182,7 +189,7 @@ async def _click_next_batch_async(page) -> bool:
                 "(el)=>{ const a=el.closest('a'); if(!a) return false; a.click(); return true; }",
                 h,
             )
-            await page.wait_for_timeout(250)
+            await page.wait_for_timeout(WAIT_MED_MS)
             if ok:
                 print("[debug] next-batch clicked by closest('a')")
                 return True
@@ -209,7 +216,7 @@ async def _click_next_batch_async(page) -> bool:
                 await page.mouse.click(
                     box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
                 )
-                await page.wait_for_timeout(250)
+                await page.wait_for_timeout(WAIT_MED_MS)
                 print("[debug] next-batch clicked by mouse coords")
                 return True
         except Exception:
@@ -241,13 +248,14 @@ def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> Lis
         )
         ctx.route("**/*", _block_assets)
         page = ctx.new_page()
-        page.set_default_timeout(10000)
+        page.set_default_timeout(8000)
+        page.set_default_navigation_timeout(8000)
 
         try:
             page.goto(target, wait_until="domcontentloaded")
         except PWTimeout:
             pass
-        page.wait_for_timeout(400)
+        page.wait_for_timeout(WAIT_MED_MS)
 
         processed_offset = 0
 
@@ -255,8 +263,8 @@ def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> Lis
             cons = page.locator("div.pui__vn15t2")
             total = cons.count()
             if total == 0:
-                page.mouse.wheel(0, 800)
-                page.wait_for_timeout(250)
+                page.mouse.wheel(0, SCROLL_SMALL)
+                page.wait_for_timeout(WAIT_SHORT_MS)
                 cons = page.locator("div.pui__vn15t2")
                 total = cons.count()
                 if total == 0:
@@ -279,11 +287,11 @@ def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> Lis
                         page.wait_for_function(
                             "(before)=> document.querySelectorAll('div.pui__vn15t2').length > before",
                             arg=before,
-                            timeout=2500,
+                            timeout=1800,
                         )
                     except Exception:
-                        page.mouse.wheel(0, 1200)
-                        page.wait_for_timeout(300)
+                        page.mouse.wheel(0, SCROLL_MED)
+                        page.wait_for_timeout(WAIT_MED_MS)
                     cons = page.locator("div.pui__vn15t2")
                     total = cons.count()
                     if processed_offset >= total:
@@ -294,7 +302,7 @@ def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> Lis
                     con = cons.nth(i)
                     sm = con.locator("[data-pui-click-code='rvshowmore']")
                     if sm.count() > 0:
-                        _click_safe(page, sm.last, 140)
+                        _click_safe(page, sm.last, WAIT_SHORT_MS)
 
                     txt = _inner_text(page, con)
                     txt = re.sub(r"\s*(더보기|접기)\s*$", "", txt).strip()
@@ -318,11 +326,11 @@ def crawl_reviews_text(url: str, headless: bool = True, batches: int = 3) -> Lis
                         page.wait_for_function(
                             "(before)=> document.querySelectorAll('div.pui__vn15t2').length > before",
                             arg=before,
-                            timeout=2500,
+                            timeout=1800,
                         )
                     except Exception:
-                        page.mouse.wheel(0, 1200)
-                        page.wait_for_timeout(300)
+                        page.mouse.wheel(0, SCROLL_MED)
+                        page.wait_for_timeout(WAIT_MED_MS)
 
             if b == batches - 1:
                 break
@@ -356,13 +364,14 @@ async def crawl_reviews_text_async(
         )
         await ctx.route("**/*", _block_assets)
         page = await ctx.new_page()
-        page.set_default_timeout(10000)
+        page.set_default_timeout(8000)
+        page.set_default_navigation_timeout(8000)
 
         try:
             await page.goto(target, wait_until="domcontentloaded")
         except PWTimeoutAsync:
             pass
-        await page.wait_for_timeout(400)
+        await page.wait_for_timeout(WAIT_MED_MS)
 
         processed_offset = 0
 
@@ -370,8 +379,8 @@ async def crawl_reviews_text_async(
             cons = page.locator("div.pui__vn15t2")
             total = await cons.count()
             if total == 0:
-                await page.mouse.wheel(0, 800)
-                await page.wait_for_timeout(250)
+                await page.mouse.wheel(0, SCROLL_SMALL)
+                await page.wait_for_timeout(WAIT_SHORT_MS)
                 cons = page.locator("div.pui__vn15t2")
                 total = await cons.count()
                 if total == 0:
@@ -394,11 +403,11 @@ async def crawl_reviews_text_async(
                         await page.wait_for_function(
                             "(before)=> document.querySelectorAll('div.pui__vn15t2').length > before",
                             arg=before,
-                            timeout=2500,
+                            timeout=1800,
                         )
                     except Exception:
-                        await page.mouse.wheel(0, 1200)
-                        await page.wait_for_timeout(300)
+                        await page.mouse.wheel(0, SCROLL_MED)
+                        await page.wait_for_timeout(WAIT_MED_MS)
                     cons = page.locator("div.pui__vn15t2")
                     total = await cons.count()
                     if processed_offset >= total:
@@ -409,7 +418,7 @@ async def crawl_reviews_text_async(
                     con = cons.nth(i)
                     sm = con.locator("[data-pui-click-code='rvshowmore']")
                     if await sm.count() > 0:
-                        await _click_safe_async(page, sm.last, 140)
+                        await _click_safe_async(page, sm.last, WAIT_SHORT_MS)
 
                     txt = await _inner_text_async(page, con)
                     txt = re.sub(r"\s*(더보기|접기)\s*$", "", txt).strip()
@@ -433,22 +442,14 @@ async def crawl_reviews_text_async(
                         await page.wait_for_function(
                             "(before)=> document.querySelectorAll('div.pui__vn15t2').length > before",
                             arg=before,
-                            timeout=2500,
+                            timeout=1800,
                         )
                     except Exception:
-                        await page.mouse.wheel(0, 1200)
-                        await page.wait_for_timeout(300)
+                        await page.mouse.wheel(0, SCROLL_MED)
+                        await page.wait_for_timeout(WAIT_MED_MS)
 
             if b == batches - 1:
                 break
 
         await browser.close()
     return out[: batches * 10]
-
-
-if __name__ == "__main__":
-    link = input("네이버 플레이스 pid: ").strip()
-    texts = crawl_reviews_text(link, headless=True, batches=3)
-    print(f"✅ 수집 {len(texts)}건")
-    for i, t in enumerate(texts, 1):
-        print(f"[{i}] {t}\n")
