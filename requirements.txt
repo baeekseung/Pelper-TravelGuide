@@ -4,7 +4,7 @@ pydantic>=2
 httpx
 tenacity
 langchain
-langchain-openai
+langchain_openai
 tiktoken
 python-dotenv
 jinja2

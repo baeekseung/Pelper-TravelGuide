@@ -16,6 +16,7 @@ from app.utils.Context_Enhance.Place_info import search_places
 from app.utils.Context_Enhance.get_place_pid import get_place_pid_async
 from app.utils.Context_Enhance.reviews_crawling import crawl_reviews_text_async
 from app.utils.Context_Enhance.Place_Image import fetch_and_save_images
+from app.utils.Context_Enhance.Blog_text_mining import refine_multiple_blogs_async
 from app.utils.geo import geocode_address
 from app.utils.cache_util import load_cache, save_cache
 
@@ -34,9 +35,11 @@ async def _gather_place_context(
     blog_top_k: int,
     review_batches: int,
     image_limit: int,
+    user_query: str = "",
+    enable_blog_refinement: bool = True,
 ) -> Tuple[str, List[Dict[str, Any]], Dict[str, Any]]:
     cache_key = (
-        f"place_ctx::{place_query}::k{blog_top_k}::b{review_batches}::i{image_limit}"
+        f"place_ctx::{place_query}::k{blog_top_k}::b{review_batches}::i{image_limit}::refine{enable_blog_refinement}::q{user_query[:50] if user_query else 'none'}"
     )
     cached = load_cache(cache_key)
     if cached:
@@ -90,20 +93,43 @@ async def _gather_place_context(
 
     reference_link: List[Dict[str, Any]] = []
     blog_links = await fetch_top_blog_links_async(pid, top_k=blog_top_k, headless=True)
-    # requests-only 추출로 경량화
-    for idx, blog_link in enumerate(blog_links, 1):
+    
+    # 블로그 내용 수집
+    blog_contents = []
+    for blog_link in blog_links:
         try:
             body = extract_blog_body_requests(blog_link.strip())
             blog_title = body.get("title", "블로그") or "블로그"
-            ctx.append(
-                f"## Place {place_num}'s Blog {idx}\n###블로그 링크: {blog_link}\n"
-            )
-            ctx.append(f"### 블로그 내용: {body.get('text','')}\n\n")
-            reference_link.append(
-                {"title": blog_title, "url": blog_link, "type": "blog", "score": 0.0}
-            )
-        except Exception:
+            blog_contents.append({
+                "text": body.get("text", ""),
+                "url": blog_link,
+                "title": blog_title
+            })
+        except Exception as e:
+            print(f"블로그 추출 실패: {blog_link}, {e}")
             continue
+    
+    # 블로그 정제 (ChatGPT 사용)
+    if enable_blog_refinement and blog_contents and user_query:
+        try:
+            refined_blogs = await refine_multiple_blogs_async(
+                blog_contents, 
+                place_name=results[0].title,
+                query=user_query,
+                max_length_per_blog=1024
+            )
+            blog_contents = refined_blogs
+        except Exception as e:
+            print(f"블로그 정제 실패, 원본 사용: {e}")
+    
+    # 정제된 블로그 내용을 컨텍스트에 추가
+    for idx, blog in enumerate(blog_contents, 1):
+        ctx.append(f"## Place {place_num}'s Blog {idx}\n###블로그 링크: {blog['url']}\n")
+        ctx.append(f"### 블로그 제목: {blog['title']}\n")
+        ctx.append(f"### 블로그 내용: {blog['text']}\n\n")
+        reference_link.append(
+            {"title": blog['title'], "url": blog['url'], "type": "blog", "score": 0.0}
+        )
 
     reviews = await crawl_reviews_text_async(pid, headless=True, batches=review_batches)
     for i, review in enumerate(reviews, 1):
@@ -132,6 +158,8 @@ async def build_context(
     review_batches: int = 2,
     image_limit: int = 3,
     max_concurrency: int = 3,
+    user_query: str = "",
+    enable_blog_refinement: bool = True,
 ):
     # 기존 이미지 파일들 정리 (새 요청 시마다)
     # 절대 경로 사용
@@ -166,7 +194,7 @@ async def build_context(
         async with sem:
             q = f"{address} {place_name}"
             ctx, refs, pinfo = await _gather_place_context(
-                q, images_dir, idx, blog_top_k, review_batches, image_limit
+                q, images_dir, idx, blog_top_k, review_batches, image_limit, user_query, enable_blog_refinement
             )
             return (ctx, refs, pinfo)
 

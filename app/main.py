@@ -117,6 +117,8 @@ async def guide_query(body: GuideQuery):
         review_batches=2,
         image_limit=3,
         max_concurrency=5,
+        user_query=body.query,
+        enable_blog_refinement=True,
     )
 
     answer = await run_chain(body.query, collected, model_name=body.llm_model)
